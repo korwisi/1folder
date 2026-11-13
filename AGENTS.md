@@ -45,5 +45,9 @@ There is no CI pipeline yet; run `cargo test` and `cargo clippy` before committi
 - Keep changes minimal and focused; add/extend unit tests for behavior changes
   (tests use `tempfile`, no filesystem assumptions outside the temp dir).
 - Never delete user files — move only, and keep the journal append-only.
+- Commits are authored by the repository owner (repo-local git config:
+  Kristof Korwisi); the coding agent adds itself as co-author via the trailer
+  `Co-authored-by: Vibe Code <vibe@users.noreply.github.com>`. Other AI tools
+  use their own `Co-authored-by` trailer instead.
 - macOS-only behavior (notifications) must stay `#[cfg]`-gated so `cargo check`
   and tests pass on Linux.
