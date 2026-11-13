@@ -1,0 +1,69 @@
+# 1folder – example configuration
+# This file doubles as the template written by `onefolder --init-config`.
+
+# Target folder: everything ends up here, structured into one subfolder per category.
+target_dir = "~/Documents/1folder"
+
+[watch]
+# Folders to watch. New or changed files are moved to the target automatically.
+# `~` is expanded to your home folder.
+dirs = ["~/Downloads", "~/Desktop"]
+# Wait until a file stays unchanged for this long before processing (downloads!).
+stability_wait_ms = 5000
+# Quiet period after the last filesystem event before a file is processed.
+debounce_ms = 1000
+
+[dedupe]
+# What happens when a file with identical SHA-256 content already exists in the target?
+#   skip                = keep the source file where it is, never duplicate (default)
+#   keep_both           = store the file additionally as "Name (2).ext"
+#   move_to_duplicates  = move the duplicate to "<target_dir>/Duplikate/"
+on_duplicate = "skip"
+duplicates_subdir = "Duplikate"
+
+[notify]
+# Post notifications to the macOS Notification Center (log-only elsewhere).
+enabled = true
+
+# Rules are evaluated top to bottom; the first match wins.
+# A rule matches when ALL specified conditions are met:
+#   extensions        – file extension (without dot, case-insensitive)
+#   filename_keywords – substring of the file name (case-insensitive)
+#   pdf_keywords      – substring of the text on the first 3 PDF pages (.pdf only)
+# A rule without any condition matches everything (catch-all rule).
+
+[[rules]]
+name = "wissenschaftliche-papers"
+subdir = "Papers"
+extensions = ["pdf"]
+pdf_keywords = ["abstract", "doi", "arxiv", "et al.", "references"]
+
+[[rules]]
+name = "formulare"
+subdir = "Formulare"
+extensions = ["pdf"]
+pdf_keywords = ["formular", "antrag", "unterschrift", "ausfüllen"]
+filename_keywords = ["formular", "form", "antrag", "application"]
+
+[[rules]]
+name = "rechnungen"
+subdir = "Rechnungen"
+filename_keywords = ["rechnung", "invoice", "receipt", "beleg", "quittung"]
+
+[[rules]]
+name = "bilder"
+subdir = "Bilder"
+extensions = ["jpg", "jpeg", "png", "heic", "gif", "webp", "tiff", "svg"]
+
+[[rules]]
+name = "archive"
+subdir = "Archive"
+extensions = ["zip", "tar", "gz", "tgz", "7z", "rar", "dmg", "pkg"]
+
+[[rules]]
+name = "dokumente"
+subdir = "Dokumente"
+extensions = ["doc", "docx", "xls", "xlsx", "ppt", "pptx", "pages", "numbers", "key", "rtf", "txt", "md"]
+
+# Where files go when no rule matches.
+fallback_subdir = "Sonstiges"
