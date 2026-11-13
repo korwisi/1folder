@@ -146,4 +146,4 @@ Access*. When started from a terminal, the terminal app needs this permission.
 
 ## License
 
-MIT
+Released under the [GNU General Public License v3.0](LICENSE) (GPL-3.0-or-later).

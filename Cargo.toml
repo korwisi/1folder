@@ -3,7 +3,7 @@ name = "onefolder"
 version = "0.1.0"
 edition = "2021"
 description = "1folder – Hintergrunddienst, der einen Ordner automatisch organisiert"
-license = "MIT"
+license = "GPL-3.0-or-later"
 
 [dependencies]
 anyhow = "1"
