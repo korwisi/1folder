@@ -77,6 +77,7 @@ onefolder
 
 | Setting | Meaning |
 | --- | --- |
+| `general.language` | Language for log output and notifications: `en` (default) or `de`. |
 | `target_dir` | The one folder everything is consolidated into. |
 | `watch.dirs` | Folders to watch (tilde-expanded). |
 | `watch.stability_wait_ms` | How long a file must stay unchanged before it is processed. |

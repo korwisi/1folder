@@ -5,6 +5,7 @@ use std::path::PathBuf;
 mod classify;
 mod config;
 mod hash;
+mod i18n;
 mod journal;
 mod notify;
 mod organize;
@@ -48,7 +49,7 @@ fn main() -> Result<()> {
         );
     }
     let config = config::Config::load(&config_path)?;
-    log::debug!("Konfiguration geladen von {}", config_path.display());
+    log::debug!("Config loaded from {}", config_path.display());
 
     if cli.once {
         watch::run_once(&config, cli.dry_run)

@@ -29,6 +29,7 @@ There is no CI pipeline yet; run `cargo test` and `cargo clippy` before committi
 - `src/watch.rs` – filesystem watcher (notify), debounce, close/rename handling
 - `src/organize.rs` – pipeline: stability check → hash → classify → dedupe → move;
   `HashIndex` caches content hashes of the target folder
+- `src/i18n.rs` – `Language` and `Messages` tables (EN/DE) for user-facing strings
 - `src/classify.rs` – rule matching and PDF text extraction (lopdf)
 - `src/journal.rs` – JSONL action log in the target folder
 - `src/notify.rs` – macOS notifications via `osascript`, log-only elsewhere
@@ -36,7 +37,10 @@ There is no CI pipeline yet; run `cargo test` and `cargo clippy` before committi
 ## Conventions
 
 - Language: code, identifiers and all documentation (README, AGENTS.md, config
-  comments) in English. User-facing log and notification strings stay in German.
+  comments) in English. User-facing log and notification strings go through
+  `src/i18n.rs` (`Messages` templates, filled with `i18n::fmt`); the default
+  language is English, German is available via `[general] language = "de"` in the
+  config. Add new user-facing strings to both `EN` and `DE` tables.
 - No code comments unless strictly necessary; prefer self-explanatory names.
 - Keep changes minimal and focused; add/extend unit tests for behavior changes
   (tests use `tempfile`, no filesystem assumptions outside the temp dir).
