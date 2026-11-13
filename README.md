@@ -24,12 +24,32 @@ documents and moves everything into a single, structured target folder.
   `*.part`, Safari's `*.download` bundles) are ignored, and a file is picked up as
   soon as its handle is closed or it is renamed to its final name.
 
-## Build
+## Build & setup
+
+### Prerequisites
+
+- Rust toolchain (edition 2021), e.g. via [rustup](https://rustup.rs):
+  `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+- macOS for the full feature set (folder watching works everywhere;
+  Notification Center notifications fall back to log output on other platforms)
+
+### Build and install
 
 ```sh
+git clone https://github.com/korwisi/1folder
+cd 1folder
 cargo build --release
 # binary: target/release/onefolder
+sudo cp target/release/onefolder /usr/local/bin/
 ```
+
+### Setup
+
+Continue with the quick start below: initialize the config, review it, preview with
+`--dry-run`, then run `--once` or start the background watch mode. To start
+automatically at login, install the LaunchAgent described under
+[Running as a background agent](#running-as-a-background-agent-launchagent) and grant
+the required permissions under [macOS permissions (TCC)](#macos-permissions-tcc).
 
 ## Quick start
 
