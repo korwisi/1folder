@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::i18n::Messages;
 use crate::organize::{self, process_file, HashIndex};
 use anyhow::Result;
 use notify::event::{AccessKind, AccessMode, ModifyKind};
@@ -12,19 +13,17 @@ pub fn run_watch(config: &Config, dry_run: bool) -> Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
     let mut watcher = recommended_watcher(tx)?;
 
+    let m = Messages::get(config.general.language);
     for dir in &config.watch.dirs {
         if !dir.is_dir() {
-            log::warn!(
-                "Überwachter Ordner existiert nicht, wird übersprungen: {}",
-                dir.display()
-            );
+            log::warn!("{}", crate::i18n::fmt(m.watch_dir_missing, &[&dir.display()]));
             continue;
         }
         watcher.watch(dir, RecursiveMode::Recursive)?;
-        log::info!("Überwache: {}", dir.display());
+        log::info!("{}", crate::i18n::fmt(m.watching, &[&dir.display()]));
     }
-    log::info!("Zielordner: {}", config.target_dir.display());
-    log::info!("1folder läuft – beenden mit Strg+C");
+    log::info!("{}", crate::i18n::fmt(m.target_folder, &[&config.target_dir.display()]));
+    log::info!("{}", m.running_hint);
 
     let debounce = Duration::from_millis(config.watch.debounce_ms);
     let mut pending: HashMap<PathBuf, Instant> = HashMap::new();
@@ -32,7 +31,7 @@ pub fn run_watch(config: &Config, dry_run: bool) -> Result<()> {
 
     loop {
         match rx.recv_timeout(Duration::from_millis(200)) {
-            Ok(event) => handle_event(event, &mut pending, debounce),
+            Ok(event) => handle_event(event, &mut pending, debounce, m),
             Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => break,
         }
@@ -41,7 +40,7 @@ pub fn run_watch(config: &Config, dry_run: bool) -> Result<()> {
 
         loop {
             match rx.try_recv() {
-                Ok(event) => handle_event(event, &mut pending, debounce),
+                Ok(event) => handle_event(event, &mut pending, debounce, m),
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => return Ok(()),
             }
@@ -50,11 +49,16 @@ pub fn run_watch(config: &Config, dry_run: bool) -> Result<()> {
     Ok(())
 }
 
-fn handle_event(event: Result<Event, notify::Error>, pending: &mut HashMap<PathBuf, Instant>, debounce: Duration) {
+fn handle_event(
+    event: Result<Event, notify::Error>,
+    pending: &mut HashMap<PathBuf, Instant>,
+    debounce: Duration,
+    m: &'static Messages,
+) {
     let event = match event {
         Ok(event) => event,
         Err(e) => {
-            log::warn!("Dateisystem-Ereignis fehlgeschlagen: {e}");
+            log::warn!("{}", crate::i18n::fmt(m.event_failed, &[&e]));
             return;
         }
     };
@@ -107,16 +111,21 @@ fn process_due(
     for path in due {
         pending.remove(&path);
         if let Err(e) = process_file(config, dry_run, &path, index) {
-            log::error!("Fehler bei {}: {e:#}", path.display());
+            let m = Messages::get(config.general.language);
+            log::error!(
+                "{}",
+                crate::i18n::fmt(m.error_processing, &[&path.display(), &format!("{e:#}")])
+            );
         }
     }
 }
 
 pub fn run_once(config: &Config, dry_run: bool) -> Result<()> {
+    let m = Messages::get(config.general.language);
     let mut files: Vec<PathBuf> = Vec::new();
     for dir in &config.watch.dirs {
         if !dir.is_dir() {
-            log::warn!("Ordner existiert nicht, wird übersprungen: {}", dir.display());
+            log::warn!("{}", crate::i18n::fmt(m.watch_dir_missing, &[&dir.display()]));
             continue;
         }
         for entry in walkdir::WalkDir::new(dir).follow_links(false) {
@@ -127,12 +136,12 @@ pub fn run_once(config: &Config, dry_run: bool) -> Result<()> {
                         files.push(path.to_path_buf());
                     }
                 }
-                Err(e) => log::warn!("Durchsuchen fehlgeschlagen: {e}"),
+                Err(e) => log::warn!("{}", crate::i18n::fmt(m.scanning_failed, &[&e])),
             }
         }
     }
     files.sort();
-    log::info!("{} Datei(en) zu prüfen", files.len());
+    log::info!("{}", crate::i18n::fmt(m.files_to_check, &[&files.len()]));
     let mut index = HashIndex::new();
     let mut moved = 0usize;
     for path in &files {
@@ -147,17 +156,20 @@ pub fn run_once(config: &Config, dry_run: bool) -> Result<()> {
                 );
             }
             Ok(Some(outcome)) => log::info!(
-                "{:?}: {} (Kategorie {}, sha256 {})",
+                "{:?}: {} (category {}, sha256 {})",
                 outcome.action,
                 outcome.src.display(),
                 outcome.category,
                 &outcome.sha256[..12.min(outcome.sha256.len())]
             ),
             Ok(None) => {}
-            Err(e) => log::error!("Fehler bei {}: {e:#}", path.display()),
+            Err(e) => log::error!(
+                "{}",
+                crate::i18n::fmt(m.error_processing, &[&path.display(), &format!("{e:#}")])
+            ),
         }
     }
-    log::info!("Fertig: {moved} Datei(en) einsortiert");
+    log::info!("{}", crate::i18n::fmt(m.done_sorted, &[&moved]));
     Ok(())
 }
 

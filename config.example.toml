@@ -4,6 +4,10 @@
 # Target folder: everything ends up here, structured into one subfolder per category.
 target_dir = "~/Documents/1folder"
 
+[general]
+# Language for log output and notifications: "en" (default) or "de".
+language = "en"
+
 [watch]
 # Folders to watch. New or changed files are moved to the target automatically.
 # `~` is expanded to your home folder.

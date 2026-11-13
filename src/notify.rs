@@ -23,5 +23,5 @@ fn send(title: &str, message: &str) {
 
 #[cfg(not(target_os = "macos"))]
 fn send(title: &str, message: &str) {
-    log::info!("[Mitteilung] {title}: {message}");
+    log::info!("[Notification] {title}: {message}");
 }

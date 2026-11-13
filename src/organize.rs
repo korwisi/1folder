@@ -1,6 +1,7 @@
 use crate::classify::{self, is_hidden, is_under};
 use crate::config::{Config, DuplicateAction};
 use crate::hash::sha256_file;
+use crate::i18n::Messages;
 use crate::journal;
 use crate::notify;
 use anyhow::{anyhow, Context, Result};
@@ -147,9 +148,10 @@ pub fn process_file(
     };
     let category = classify::classify(config, path, pdf_text.as_deref());
     let dest_dir = config.target_dir.join(&category);
+    let m = Messages::get(config.general.language);
     let file_name = path
         .file_name()
-        .ok_or_else(|| anyhow!("Pfad ohne Dateinamen: {}", path.display()))?
+        .ok_or_else(|| anyhow!("{}", crate::i18n::fmt(m.path_without_name, &[&path.display()])))?
         .to_owned();
     let file_name = PathBuf::from(file_name);
 
@@ -179,18 +181,20 @@ fn handle_duplicate(
 ) -> Result<Outcome> {
     match config.dedupe.on_duplicate {
         DuplicateAction::Skip => {
+            let m = Messages::get(config.general.language);
             log::info!(
-                "Duplikat übersprungen: {} (bereits in {})",
-                src.display(),
-                existing.display()
+                "{}",
+                crate::i18n::fmt(
+                    m.duplicate_skipped_log,
+                    &[&src.display(), &existing.display()]
+                )
             );
             notify::maybe_notify(
                 &config.notify,
-                "Duplikat übersprungen",
-                &format!(
-                    "{} liegt bereits in {}",
-                    file_name.to_string_lossy(),
-                    existing.display()
+                m.duplicate_skipped_title,
+                &crate::i18n::fmt(
+                    m.duplicate_already_in,
+                    &[&file_name.to_string_lossy(), &existing.display()],
                 ),
             );
             if !dry_run {
@@ -270,16 +274,19 @@ fn move_file(
             sha256: sha256.to_string(),
         });
     }
+    let m = Messages::get(config.general.language);
     if let Some(parent) = dst.parent() {
-        fs::create_dir_all(parent)
-            .with_context(|| format!("Ordner nicht anlegbar: {}", parent.display()))?;
+        fs::create_dir_all(parent).with_context(|| {
+            crate::i18n::fmt(m.dir_not_creatable, &[&parent.display()])
+        })?;
     }
-    move_raw(src, dst)
-        .with_context(|| format!("Verschieben fehlgeschlagen: {} → {}", src.display(), dst.display()))?;
+    move_raw(src, dst).with_context(|| {
+        crate::i18n::fmt(m.move_failed, &[&src.display(), &dst.display()])
+    })?;
     log::info!("{} → {}", src.display(), dst.display());
     notify::maybe_notify(
         &config.notify,
-        "Datei einsortiert",
+        m.file_sorted_title,
         &format!(
             "{} → {}",
             src.file_name().map(|n| n.to_string_lossy()).unwrap_or_default(),

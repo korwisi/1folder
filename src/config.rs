@@ -1,3 +1,4 @@
+use crate::i18n::Language;
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -6,6 +7,8 @@ pub const DEFAULT_CONFIG: &str = include_str!("../config.example.toml");
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
+    #[serde(default)]
+    pub general: GeneralConfig,
     pub target_dir: PathBuf,
     pub watch: WatchConfig,
     #[serde(default)]
@@ -16,6 +19,12 @@ pub struct Config {
     pub rules: Vec<Rule>,
     #[serde(default = "default_fallback_subdir")]
     pub fallback_subdir: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct GeneralConfig {
+    #[serde(default)]
+    pub language: Language,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -96,9 +105,9 @@ pub fn expand_tilde(path: &Path) -> PathBuf {
 impl Config {
     pub fn load(path: &Path) -> Result<Config> {
         let raw = std::fs::read_to_string(path)
-            .with_context(|| format!("Konfiguration nicht lesbar: {}", path.display()))?;
+            .with_context(|| format!("Config not readable: {}", path.display()))?;
         let mut config: Config = toml::from_str(&raw)
-            .with_context(|| format!("Konfiguration ungültig: {}", path.display()))?;
+            .with_context(|| format!("Config invalid: {}", path.display()))?;
         config.target_dir = expand_tilde(&config.target_dir);
         config.watch.dirs = config
             .watch
