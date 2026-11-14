@@ -33,6 +33,8 @@ There is no CI pipeline yet; run `cargo test` and `cargo clippy` before committi
 - `src/classify.rs` – rule matching and PDF text extraction (lopdf)
 - `src/journal.rs` – JSONL action log in the target folder
 - `src/notify.rs` – macOS notifications via `osascript`, log-only elsewhere
+- `src/tags.rs` – Finder tags via `com.apple.metadata:_kMDItemUserTags` xattr
+  (binary plist), no-op on non-macOS; configured in `[tags]`, per-rule `color`
 
 ## Conventions
 

@@ -4,6 +4,7 @@ use crate::hash::sha256_file;
 use crate::i18n::Messages;
 use crate::journal;
 use crate::notify;
+use crate::tags;
 use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use std::fs;
@@ -294,6 +295,18 @@ fn move_file(
         ),
     );
     journal::append(&config.journal_path(), action.as_str(), src, dst, category, sha256)?;
+    let rule_color = config
+        .rules
+        .iter()
+        .find(|r| r.subdir == category)
+        .and_then(|r| r.color);
+    tags::apply(
+        &config.tags,
+        config.general.language,
+        dst,
+        category,
+        rule_color,
+    );
     index.insert(sha256, dst);
     Ok(Outcome {
         action,

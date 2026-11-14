@@ -29,6 +29,13 @@ duplicates_subdir = "Duplikate"
 # Post notifications to the macOS Notification Center (log-only elsewhere).
 enabled = true
 
+[tags]
+# Apply macOS Finder tags to sorted files (no-op on other platforms).
+# Tags are visible in the Finder sidebar, Spotlight (tag:Name) and Smart Folders.
+enabled = true
+# Optional extra tag added to every file sorted by 1folder. Empty = disabled.
+root_tag = "1folder"
+
 # Rules are evaluated top to bottom; the first match wins.
 # A rule matches when ALL specified conditions are met:
 #   extensions        – file extension (without dot, case-insensitive)
@@ -41,6 +48,7 @@ name = "wissenschaftliche-papers"
 subdir = "Papers"
 extensions = ["pdf"]
 pdf_keywords = ["abstract", "doi", "arxiv", "et al.", "references"]
+color = 4
 
 [[rules]]
 name = "formulare"
@@ -53,6 +61,8 @@ filename_keywords = ["formular", "form", "antrag", "application"]
 name = "rechnungen"
 subdir = "Rechnungen"
 filename_keywords = ["rechnung", "invoice", "receipt", "beleg", "quittung"]
+# Optional Finder tag color: 1=gray 2=green 3=purple 4=blue 5=yellow 6=red 7=orange
+color = 6
 
 [[rules]]
 name = "bilder"

@@ -16,6 +16,8 @@ pub struct Config {
     #[serde(default)]
     pub notify: NotifyConfig,
     #[serde(default)]
+    pub tags: TagsConfig,
+    #[serde(default)]
     pub rules: Vec<Rule>,
     #[serde(default = "default_fallback_subdir")]
     pub fallback_subdir: String,
@@ -59,6 +61,14 @@ pub struct NotifyConfig {
     pub enabled: bool,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct TagsConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub root_tag: String,
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Rule {
     pub name: String,
@@ -69,6 +79,8 @@ pub struct Rule {
     pub filename_keywords: Vec<String>,
     #[serde(default)]
     pub pdf_keywords: Vec<String>,
+    #[serde(default)]
+    pub color: Option<u8>,
 }
 
 fn default_stability_wait_ms() -> u64 {

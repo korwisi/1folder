@@ -26,6 +26,8 @@ pub struct Messages {
     pub path_without_name: &'static str,
     pub move_failed: &'static str,
     pub dir_not_creatable: &'static str,
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    pub tags_failed: &'static str,
 }
 
 pub const EN: Messages = Messages {
@@ -45,6 +47,7 @@ pub const EN: Messages = Messages {
     path_without_name: "Path without file name: {}",
     move_failed: "Moving failed: {} → {}",
     dir_not_creatable: "Directory not creatable: {}",
+    tags_failed: "Could not set Finder tags on {}: {}",
 };
 
 pub const DE: Messages = Messages {
@@ -64,6 +67,7 @@ pub const DE: Messages = Messages {
     path_without_name: "Pfad ohne Dateinamen: {}",
     move_failed: "Verschieben fehlgeschlagen: {} → {}",
     dir_not_creatable: "Ordner nicht anlegbar: {}",
+    tags_failed: "Finder-Tags konnten nicht gesetzt werden für {}: {}",
 };
 
 impl Messages {
