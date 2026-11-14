@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-13
+
 ### Added
 - macOS Finder tags: sorted files are tagged with their category (e.g. `Papers`,
   `Rechnungen`), optionally colored per rule (`rules[].color`, Finder color index
