@@ -9,6 +9,7 @@ mod i18n;
 mod journal;
 mod notify;
 mod organize;
+mod tags;
 mod watch;
 
 #[derive(Parser)]

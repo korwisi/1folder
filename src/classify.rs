@@ -96,6 +96,7 @@ mod tests {
             extensions: ext.iter().map(|s| s.to_string()).collect(),
             filename_keywords: file_kw.iter().map(|s| s.to_string()).collect(),
             pdf_keywords: pdf_kw.iter().map(|s| s.to_string()).collect(),
+            color: None,
         }
     }
 

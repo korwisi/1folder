@@ -16,6 +16,10 @@ documents and moves everything into a single, structured target folder.
   *abstract*, *DOI*, *arXiv* or forms via *Formular*, *Antrag*).
 - **macOS Notification Center** notifications for every action (moves, skipped
   duplicates).
+- **Finder tags**: sorted files are tagged with their category (optionally colored
+  per rule and with a common root tag), making them findable via the Finder
+  sidebar, Spotlight (`tag:Papers`) and Smart Folders — even after manually
+  moving files elsewhere.
 - **Safe by design**: files are only moved, never deleted; every action is appended to
   a JSONL journal (`<target>/.1folder-journal.jsonl`); a `--dry-run` mode shows what
   would happen.
@@ -84,6 +88,9 @@ onefolder
 | `watch.debounce_ms` | Quiet period after the last filesystem event. |
 | `dedupe.on_duplicate` | `skip`, `keep_both` or `move_to_duplicates`. |
 | `notify.enabled` | Toggle Notification Center notifications. |
+| `tags.enabled` | Apply macOS Finder tags to sorted files (no-op elsewhere). |
+| `tags.root_tag` | Extra tag on every sorted file; empty disables it. |
+| `rules[].color` | Optional Finder tag color: 1=gray 2=green 3=purple 4=blue 5=yellow 6=red 7=orange. |
 | `rules` | Ordered list; first match wins. All specified conditions must match. |
 | `fallback_subdir` | Subfolder for files that match no rule. |
 
