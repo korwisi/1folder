@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-16
+
+### Added
+- **Interactive language selection**: `--init-config` now prompts users to choose
+  between German and English during first setup, automatically configuring folder
+  names and UI language accordingly. English users no longer need to manually edit
+  the config to switch from the German default.
+- **Universal binary support for Apple Silicon**: new `build-universal.sh` script
+  builds a single Mach-O universal binary combining both x86_64 (Intel) and
+  aarch64 (Apple Silicon) architectures using `lipo`. Enables distributing one
+  asset that runs natively on both Intel and Apple Silicon Macs. See README for
+  setup requirements and build instructions.
+
+### Fixed
+- Clippy linting warning: replaced `assert_eq!(x, true)` with `assert!(x)` in
+  language tests for better idiomatic Rust.
+- Infinite loop in `free_destination()`: collision handling now uses a bounded
+  loop (10,000 iterations max) with a timestamp-based fallback filename
+  (`collision-{timestamp_millis}.ext`) to ensure termination and prevent panics
+  on pathological filesystem states.
+- HashIndex state loss during duplicate handling: the deduplication index is now
+  properly passed through `handle_duplicate()` instead of creating temporary
+  instances, ensuring that new files added during duplicate processing are
+  tracked correctly to avoid re-detecting them on the next run.
+
 ## [0.3.0] - 2026-11-16
 
 ### Added
