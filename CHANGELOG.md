@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-13
+
 ### Fixed
 - Compilation on macOS: encode Finder tag plists via `plist::to_writer_binary`
-  (`Value::to_binary` does not exist in `plist` 1.x). Note: the tagged `v0.2.0`
-  does not build on macOS; pull `main` for the fix. (#2)
+  (`Value::to_binary` does not exist in `plist` 1.x). The tagged `v0.2.0` did
+  not build on macOS. (#2)
+
+## [0.2.0] - 2026-11-13
 
 ### Added
 - macOS Finder tags: sorted files are tagged with their category (e.g. `Papers`,
