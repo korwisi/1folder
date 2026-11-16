@@ -152,6 +152,19 @@ Access*. When started from a terminal, the terminal app needs this permission.
   binaries and LaunchAgents without bundling.
 - No OCR and no cloud/classifier integration yet.
 
+## Assets
+
+Brand assets live in [`assets/`](assets/):
+
+- `logo/onefolder-logo-*.png` – full logo (folder + documents) for websites and
+  GitHub; transparent background on a square canvas
+- `icon/onefolder-folder-icon-*.png` – reduced folder-only icon (16–1024 px)
+- `icon/onefolder.icns` – ready-to-use macOS icon set (16–1024 px)
+
+To use it as a macOS folder icon: select the folder in Finder → `Cmd+I` → drag
+`onefolder-folder-icon-512.png` (or `onefolder.icns`) onto the icon at the top
+left of the info panel.
+
 ## License
 
 Released under the [GNU General Public License v3.0](LICENSE) (GPL-3.0-or-later).
