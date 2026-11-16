@@ -40,6 +40,11 @@ debounce_ms = 1000
 mode = "move_as_unit"
 # Category for folders with project markers or mixed content.
 subdir = "Projekte"
+# Extra project markers detected in addition to the built-in list
+# (.git, package.json, Cargo.toml, …). A folder containing one of these
+# files or folders is moved as a unit to `subdir`. Example: ".decker"
+# marks decker (reveal.js) presentation projects.
+markers = [".decker"]
 
 [dedupe]
 # What happens when a file with identical SHA-256 content already exists in the target?

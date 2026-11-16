@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   macOS bundles (`.app`, `.bundle`, `.framework`) are always moved as units;
   Safari `.download` bundles, empty and hidden folders are left alone.
   `folders.mode = "ignore"` restores the previous per-file sorting.
+- `folders.markers`: user-defined project markers (e.g. `.decker` for decker
+  presentation projects) detected in addition to the built-in list; folders
+  containing them are moved as units to `folders.subdir`.
 
 ### Fixed
 - `[dedupe]` missing from the config no longer yields an empty

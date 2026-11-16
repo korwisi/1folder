@@ -48,6 +48,8 @@ pub struct FoldersConfig {
     pub mode: FolderMode,
     #[serde(default = "default_folders_subdir")]
     pub subdir: String,
+    #[serde(default)]
+    pub markers: Vec<String>,
 }
 
 impl Default for FoldersConfig {
@@ -55,6 +57,7 @@ impl Default for FoldersConfig {
         Self {
             mode: FolderMode::default(),
             subdir: default_folders_subdir(),
+            markers: Vec::new(),
         }
     }
 }

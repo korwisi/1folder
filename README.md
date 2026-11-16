@@ -90,6 +90,7 @@ onefolder
 | `dedupe.on_duplicate` | `skip`, `keep_both` or `move_to_duplicates`. |
 | `folders.mode` | Folder handling in watched folders: `move_as_unit` (default) or `ignore`. |
 | `folders.subdir` | Category for folders with project markers or mixed content (default `Projekte`). |
+| `folders.markers` | Extra project markers (files/folders like `.decker`) detected in addition to the built-in list. |
 | `notify.enabled` | Toggle Notification Center notifications. |
 | `tags.enabled` | Apply macOS Finder tags to sorted files (no-op elsewhere). |
 | `tags.root_tag` | Extra tag on every sorted file; empty disables it. |
@@ -126,7 +127,9 @@ Classification per folder, first match wins:
 
 1. a rule whose `folder_keywords` match the folder name
 2. project markers (`.git`, `package.json`, `Cargo.toml`, `pyproject.toml`,
-   `go.mod`, `Makefile`, …) → `folders.subdir` (default `Projekte`)
+   `go.mod`, `Makefile`, …, plus your own via `folders.markers`, e.g.
+   `.decker` for decker presentation projects) → `folders.subdir`
+   (default `Projekte`)
 3. homogeneous content — if every file in the folder falls into the same
    category, the folder goes there (an images-only folder → `Bilder`)
 4. mixed content (e.g. extracted repositories without markers) → `folders.subdir`

@@ -88,7 +88,7 @@ pub fn classify_folder(config: &Config, dir: &Path) -> String {
             return rule.subdir.clone();
         }
     }
-    if is_bundle(dir) || has_project_markers(dir) {
+    if is_bundle(dir) || has_project_markers(dir, &config.folders.markers) {
         return config.folders.subdir.clone();
     }
     homogeneous_category(config, dir).unwrap_or_else(|| config.folders.subdir.clone())
@@ -103,11 +103,18 @@ fn is_bundle(dir: &Path) -> bool {
         .unwrap_or(false)
 }
 
-fn has_project_markers(dir: &Path) -> bool {
+fn has_project_markers(dir: &Path, extra: &[String]) -> bool {
     for entry in walkdir::WalkDir::new(dir).follow_links(false).max_depth(3) {
         let Ok(entry) = entry else { continue };
         let name = entry.file_name().to_string_lossy();
         if PROJECT_MARKERS.contains(&name.as_ref()) {
+            return true;
+        }
+        let bare = name.trim_start_matches('.');
+        if extra
+            .iter()
+            .any(|m| m.trim_start_matches('.') == bare && !bare.is_empty())
+        {
             return true;
         }
     }
@@ -287,6 +294,25 @@ mod tests {
         );
         config.rules[0].folder_keywords = vec!["urlaub".to_string()];
         assert_eq!(classify_folder(&config, &dir), "Privat");
+    }
+
+    #[test]
+    fn custom_markers_from_config_are_detected() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("vorlesung");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("slides.md"), b"# slides").unwrap();
+        std::fs::write(dir.join(".decker"), b"").unwrap();
+        assert_eq!(classify_folder(&test_config(), &dir), "Projekte");
+    }
+
+    #[test]
+    fn custom_markers_match_without_leading_dot() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("projekt");
+        std::fs::create_dir_all(dir.join(".decker")).unwrap();
+        std::fs::write(dir.join("slides.md"), b"# slides").unwrap();
+        assert_eq!(classify_folder(&test_config(), &dir), "Projekte");
     }
 
     #[test]
