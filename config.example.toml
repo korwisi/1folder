@@ -7,6 +7,14 @@ target_dir = "~/Documents/1folder"
 [general]
 # Language for log output and notifications: "en" (default) or "de".
 language = "en"
+# How to preserve the source folder context of a file, e.g. a file in
+# "~/Desktop/alter-desktop/bilder/Abschlussfeier/" when "~/Desktop" is watched:
+#   off        = ignore the source path (default): "Bilder/foto.jpg"
+#   structure  = recreate the relative path under the category:
+#                "Bilder/alter-desktop/bilder/Abschlussfeier/foto.jpg"
+#   prefix     = keep the category flat, but prepend the parent folder name:
+#                "Bilder/Abschlussfeier - foto.jpg"
+preserve_source_paths = "off"
 
 [watch]
 # Folders to watch. New or changed files are moved to the target automatically.
@@ -67,12 +75,12 @@ color = 6
 [[rules]]
 name = "bilder"
 subdir = "Bilder"
-extensions = ["jpg", "jpeg", "png", "heic", "gif", "webp", "tiff", "svg"]
+extensions = ["jpg", "jpeg", "png", "heic", "gif", "webp", "tiff", "svg", "cr2", "cr3", "nef", "arw", "dng", "raf", "orf", "rw2"]
 
 [[rules]]
 name = "archive"
 subdir = "Archive"
-extensions = ["zip", "tar", "gz", "tgz", "7z", "rar", "dmg", "pkg"]
+extensions = ["zip", "tar", "gz", "tgz", "7z", "rar", "dmg", "pkg", "iso", "img", "bin"]
 
 [[rules]]
 name = "dokumente"

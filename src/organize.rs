@@ -1,11 +1,11 @@
 use crate::classify::{self, is_hidden, is_under};
-use crate::config::{Config, DuplicateAction};
+use crate::config::{Config, DuplicateAction, PreserveMode};
 use crate::hash::sha256_file;
 use crate::i18n::Messages;
 use crate::journal;
 use crate::notify;
 use crate::tags;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -148,17 +148,12 @@ pub fn process_file(
         None
     };
     let category = classify::classify(config, path, pdf_text.as_deref());
-    let dest_dir = config.target_dir.join(&category);
-    let m = Messages::get(config.general.language);
-    let file_name = path
-        .file_name()
-        .ok_or_else(|| anyhow!("{}", crate::i18n::fmt(m.path_without_name, &[&path.display()])))?
-        .to_owned();
-    let file_name = PathBuf::from(file_name);
+    let (rel_dir, file_name) = destination_naming(config, path);
+    let dest_dir = config.target_dir.join(&category).join(&rel_dir);
 
     index.refresh(&config.target_dir);
     let outcome = if let Some(existing) = index.lookup(&sha256).map(|p| p.to_path_buf()) {
-        handle_duplicate(config, dry_run, path, &existing, &dest_dir, &file_name, &sha256)?
+        handle_duplicate(config, dry_run, path, &existing, &dest_dir, &file_name, &category, &sha256)?
     } else {
         let existing = dest_dir.join(&file_name);
         let dst = if existing.exists() {
@@ -171,6 +166,57 @@ pub fn process_file(
     Ok(Some(outcome))
 }
 
+fn destination_naming(config: &Config, path: &Path) -> (PathBuf, PathBuf) {
+    let file_name: PathBuf = path
+        .file_name()
+        .map(PathBuf::from)
+        .unwrap_or_default();
+    match config.general.preserve_source_paths {
+        PreserveMode::Off => (PathBuf::new(), file_name),
+        PreserveMode::Structure => {
+            let Some(rel) = watched_relative_path(config, path) else {
+                return (PathBuf::new(), file_name);
+            };
+            let rel_dir = rel
+                .parent()
+                .filter(|p| !p.as_os_str().is_empty())
+                .map(Path::to_path_buf)
+                .unwrap_or_default();
+            (rel_dir, file_name)
+        }
+        PreserveMode::Prefix => {
+            let Some(rel) = watched_relative_path(config, path) else {
+                return (PathBuf::new(), file_name);
+            };
+            let parent = rel
+                .parent()
+                .and_then(|p| p.file_name())
+                .map(|n| n.to_string_lossy().to_string());
+            match parent {
+                Some(parent) => (
+                    PathBuf::new(),
+                    PathBuf::from(format!("{} - {}", parent, file_name.to_string_lossy())),
+                ),
+                None => (PathBuf::new(), file_name),
+            }
+        }
+    }
+}
+
+fn watched_relative_path(config: &Config, path: &Path) -> Option<PathBuf> {
+    config.watch.dirs.iter().find_map(|dir| {
+        path.strip_prefix(dir)
+            .ok()
+            .filter(|rel| {
+                rel.parent()
+                    .map(|p| !p.as_os_str().is_empty())
+                    .unwrap_or(false)
+            })
+            .map(Path::to_path_buf)
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
 fn handle_duplicate(
     config: &Config,
     dry_run: bool,
@@ -178,6 +224,7 @@ fn handle_duplicate(
     existing: &Path,
     dest_dir: &Path,
     file_name: &Path,
+    category: &str,
     sha256: &str,
 ) -> Result<Outcome> {
     match config.dedupe.on_duplicate {
@@ -199,16 +246,12 @@ fn handle_duplicate(
                 ),
             );
             if !dry_run {
-                let category = dest_dir
-                    .file_name()
-                    .map(|n| n.to_string_lossy().to_string())
-                    .unwrap_or_default();
                 journal::append(
                     &config.journal_path(),
                     Action::DuplicateSkipped.as_str(),
                     src,
                     existing,
-                    &category,
+                    category,
                     sha256,
                 )?;
             }
@@ -216,17 +259,13 @@ fn handle_duplicate(
                 action: Action::DuplicateSkipped,
                 src: src.to_path_buf(),
                 dst: existing.to_path_buf(),
-                category: dest_dir
-                    .file_name()
-                    .map(|n| n.to_string_lossy().to_string())
-                    .unwrap_or_default(),
+                category: category.to_string(),
                 sha256: sha256.to_string(),
             })
         }
         DuplicateAction::KeepBoth => {
             let dst = free_destination(dest_dir, file_name);
-            let category = category_of(dest_dir, config);
-            move_file(config, dry_run, src, &dst, Action::KeptBoth, &category, sha256, &mut HashIndex::new())
+            move_file(config, dry_run, src, &dst, Action::KeptBoth, category, sha256, &mut HashIndex::new())
         }
         DuplicateAction::MoveToDuplicates => {
             let dup_dir = config.target_dir.join(&config.dedupe.duplicates_subdir);
@@ -243,15 +282,6 @@ fn handle_duplicate(
             )
         }
     }
-}
-
-fn category_of(dir: &Path, config: &Config) -> String {
-    if dir == config.target_dir {
-        return config.fallback_subdir.clone();
-    }
-    dir.file_name()
-        .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| config.fallback_subdir.clone())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -516,6 +546,82 @@ mod tests {
         let inner = safari_dir.join("bericht.zip");
         std::fs::write(&inner, b"partial").unwrap();
         assert!(!should_process(&config, &inner));
+    }
+
+    #[test]
+    fn structure_mode_recreates_relative_folders() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target = tmp.path().join("target");
+        let watched = tmp.path().join("Desktop");
+        let mut config = config_with_target(&target);
+        config.watch.dirs = vec![watched.clone()];
+        config.general.preserve_source_paths = PreserveMode::Structure;
+        let src = watched.join("alter-desktop/bilder/Abschlussfeier/foto.jpg");
+        fs::create_dir_all(src.parent().unwrap()).unwrap();
+        std::fs::write(&src, b"jpegdata").unwrap();
+
+        let outcome = process_file(&config, false, &src, &mut HashIndex::new())
+            .unwrap()
+            .unwrap();
+        assert_eq!(outcome.category, "Bilder");
+        assert!(
+            target
+                .join("Bilder/alter-desktop/bilder/Abschlussfeier/foto.jpg")
+                .exists()
+        );
+        assert!(!src.exists());
+    }
+
+    #[test]
+    fn structure_mode_keeps_files_in_watched_root_flat() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target = tmp.path().join("target");
+        let watched = tmp.path().join("Desktop");
+        let mut config = config_with_target(&target);
+        config.watch.dirs = vec![watched.clone()];
+        config.general.preserve_source_paths = PreserveMode::Structure;
+        let src = watched.join("foto.jpg");
+        fs::create_dir_all(&watched).unwrap();
+        std::fs::write(&src, b"jpegdata").unwrap();
+
+        process_file(&config, false, &src, &mut HashIndex::new()).unwrap();
+        assert!(target.join("Bilder/foto.jpg").exists());
+    }
+
+    #[test]
+    fn prefix_mode_prepends_parent_folder_to_file_name() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target = tmp.path().join("target");
+        let watched = tmp.path().join("Desktop");
+        let mut config = config_with_target(&target);
+        config.watch.dirs = vec![watched.clone()];
+        config.general.preserve_source_paths = PreserveMode::Prefix;
+        let src = watched.join("alter-desktop/bilder/Abschlussfeier/foto.jpg");
+        fs::create_dir_all(src.parent().unwrap()).unwrap();
+        std::fs::write(&src, b"jpegdata").unwrap();
+
+        let outcome = process_file(&config, false, &src, &mut HashIndex::new())
+            .unwrap()
+            .unwrap();
+        assert_eq!(outcome.category, "Bilder");
+        assert!(target.join("Bilder/Abschlussfeier - foto.jpg").exists());
+        assert!(!src.exists());
+    }
+
+    #[test]
+    fn off_mode_ignores_source_folders() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target = tmp.path().join("target");
+        let watched = tmp.path().join("Desktop");
+        let mut config = config_with_target(&target);
+        config.watch.dirs = vec![watched.clone()];
+        let src = watched.join("alter-desktop/Abschlussfeier/foto.jpg");
+        fs::create_dir_all(src.parent().unwrap()).unwrap();
+        std::fs::write(&src, b"jpegdata").unwrap();
+
+        process_file(&config, false, &src, &mut HashIndex::new()).unwrap();
+        assert!(target.join("Bilder/foto.jpg").exists());
+        assert!(!target.join("Bilder/alter-desktop").exists());
     }
 
     #[test]

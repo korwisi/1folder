@@ -108,6 +108,15 @@ mod tests {
     }
 
     #[test]
+    fn raw_images_and_disc_images_match_default_rules() {
+        let config = test_config();
+        assert_eq!(classify(&config, &path("IMG_0001.CR2"), None), "Bilder");
+        assert_eq!(classify(&config, &path("IMG_0002.cr3"), None), "Bilder");
+        assert_eq!(classify(&config, &path("DSC_0001.NEF"), None), "Bilder");
+        assert_eq!(classify(&config, &path("ubuntu-24.04.iso"), None), "Archive");
+    }
+
+    #[test]
     fn filename_keyword_rule_matches() {
         let config = test_config();
         assert_eq!(

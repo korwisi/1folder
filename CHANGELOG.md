@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `general.preserve_source_paths` option to keep the source folder context of
+  sorted files: `structure` recreates the relative path from the watched folder
+  under the category subfolder, `prefix` prepends the parent folder name to the
+  file name (e.g. `Abschlussfeier - foto.jpg`); default `off` keeps the previous
+  flat behavior.
+- Disc images (`iso`, `img`, `bin`) are sorted into `Archive` and camera RAW
+  formats (`cr2`, `cr3`, `nef`, `arw`, `dng`, `raf`, `orf`, `rw2`) into `Bilder`
+  in the default rules.
+
 ## [0.2.1] - 2026-11-13
 
 ### Fixed

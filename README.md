@@ -82,6 +82,7 @@ onefolder
 | Setting | Meaning |
 | --- | --- |
 | `general.language` | Language for log output and notifications: `en` (default) or `de`. |
+| `general.preserve_source_paths` | How to keep the source folder context: `off` (default), `structure` or `prefix`. |
 | `target_dir` | The one folder everything is consolidated into. |
 | `watch.dirs` | Folders to watch (tilde-expanded). |
 | `watch.stability_wait_ms` | How long a file must stay unchanged before it is processed. |
@@ -102,6 +103,18 @@ A rule matches when **all** specified conditions are met:
 
 Example: keep scientific papers before generic PDF rules by listing the `Papers`
 rule first.
+
+### Preserving the source folder context
+
+By default a file like `~/Desktop/alter-desktop/bilder/Abschlussfeier/foto.jpg`
+ends up flat as `Bilder/foto.jpg` and the folder context is lost. With
+`general.preserve_source_paths` you can keep it:
+
+- `structure` recreates the relative path from the watched folder under the
+  category: `Bilder/alter-desktop/bilder/Abschlussfeier/foto.jpg`
+- `prefix` keeps the category flat but prepends the parent folder name to the
+  file name: `Bilder/Abschlussfeier - foto.jpg`
+- `off` (default) ignores the source path
 
 ## Running as a background agent (LaunchAgent)
 

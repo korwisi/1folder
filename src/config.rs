@@ -27,6 +27,17 @@ pub struct Config {
 pub struct GeneralConfig {
     #[serde(default)]
     pub language: Language,
+    #[serde(default)]
+    pub preserve_source_paths: PreserveMode,
+}
+
+#[derive(Debug, Deserialize, Clone, Copy, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PreserveMode {
+    #[default]
+    Off,
+    Structure,
+    Prefix,
 }
 
 #[derive(Debug, Deserialize, Clone)]
