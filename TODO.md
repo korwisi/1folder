@@ -20,6 +20,12 @@ committed to a release; pick freely.
 
 ## Target folder maintenance
 
+- [ ] Persist the target folder's SHA-256 index so startup and each incoming file
+      do not require rehashing every target file. Store each file's path, size,
+      modification time, and hash in a small index; reuse a hash only when the
+      file metadata still matches, and hash new or changed files. Reconcile
+      missing files and write updates atomically so manual changes and
+      interruptions do not leave the index stale or corrupt.
 - [ ] `onefolder rename-category <old> <new>`: rename a category end-to-end —
       update every config reference (`rules[].subdir`, `fallback_subdir`,
       `folders.subdir`, `dedupe.duplicates_subdir`) in place while preserving
