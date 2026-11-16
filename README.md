@@ -91,6 +91,25 @@ onefolder --once
 onefolder
 ```
 
+### ⚠️ First run: initial indexing
+
+The first time you run `onefolder --once` or start the background agent, it will
+build a persistent SHA-256 index of your entire target folder. This index is used
+to detect duplicates and avoid rehashing on subsequent runs.
+
+**For large target folders (thousands of files), the initial indexing can take
+several minutes** as every file is read and hashed. This is a one-time operation:
+subsequent runs will load the index from disk and only rehash changed files, which
+is significantly faster.
+
+You can monitor progress by watching the process:
+```sh
+ps aux | grep onefolder
+```
+
+Once indexing completes, the index file (`.1folder_index.json`) will appear in your
+target folder, and the agent will respond immediately to new files.
+
 ## Configuration
 
 `onefolder --init-config` writes [`config.example.toml`](config.example.toml) to

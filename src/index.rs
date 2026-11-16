@@ -83,8 +83,11 @@ impl PersistentIndex {
             let Ok(entry) = entry else { continue };
             if entry.file_type().is_file() {
                 let path = entry.path().to_path_buf();
-                // Skip the index file itself
-                if path.file_name() != Some(std::ffi::OsStr::new(".1folder_index.json")) {
+                let file_name = path.file_name().unwrap_or_default();
+                // Skip index file and system files
+                if file_name != std::ffi::OsStr::new(".1folder_index.json")
+                    && file_name != std::ffi::OsStr::new(".DS_Store")
+                {
                     entries.push(path);
                 }
             }
