@@ -53,6 +53,14 @@ pub fn pdf_sample_text(path: &Path, max_pages: usize) -> Option<String> {
 }
 
 pub fn classify(config: &Config, path: &Path, pdf_text: Option<&str>) -> String {
+    classify_reason(config, path, pdf_text).0
+}
+
+pub fn classify_reason(
+    config: &Config,
+    path: &Path,
+    pdf_text: Option<&str>,
+) -> (String, Option<String>) {
     let ext = file_extension(path);
     let file_name = path
         .file_name()
@@ -62,13 +70,13 @@ pub fn classify(config: &Config, path: &Path, pdf_text: Option<&str>) -> String 
     for rule in &config.rules {
         if rule_matches(rule, &ext, &file_name, pdf_text) {
             log::debug!("{} → Regel '{}' ({})", path.display(), rule.name, rule.subdir);
-            return rule.subdir.clone();
+            return (rule.subdir.clone(), Some(rule.name.clone()));
         }
     }
-    config.fallback_subdir.clone()
+    (config.fallback_subdir.clone(), None)
 }
 
-pub fn classify_folder(config: &Config, dir: &Path) -> String {
+pub fn classify_folder_reason(config: &Config, dir: &Path) -> (String, Option<String>) {
     let folder_name = dir
         .file_name()
         .map(|n| n.to_string_lossy().to_lowercase())
@@ -85,13 +93,25 @@ pub fn classify_folder(config: &Config, dir: &Path) -> String {
                 rule.name,
                 rule.subdir
             );
-            return rule.subdir.clone();
+            return (rule.subdir.clone(), Some(rule.name.clone()));
         }
     }
-    if is_bundle(dir) || has_project_markers(dir, &config.folders.markers) {
-        return config.folders.subdir.clone();
+    if is_bundle(dir) {
+        return (config.folders.subdir.clone(), Some("bundle".to_string()));
     }
-    homogeneous_category(config, dir).unwrap_or_else(|| config.folders.subdir.clone())
+    if has_project_markers(dir, &config.folders.markers) {
+        return (
+            config.folders.subdir.clone(),
+            Some("project-markers".to_string()),
+        );
+    }
+    match homogeneous_category(config, dir) {
+        Some(category) => (category, Some("homogeneous".to_string())),
+        None => (
+            config.folders.subdir.clone(),
+            Some("mixed-content".to_string()),
+        ),
+    }
 }
 
 fn is_bundle(dir: &Path) -> bool {
@@ -258,7 +278,7 @@ mod tests {
         let dir = tmp.path().join("some-repo");
         std::fs::create_dir_all(dir.join(".git")).unwrap();
         std::fs::write(dir.join("main.rs"), b"fn main() {}").unwrap();
-        assert_eq!(classify_folder(&test_config(), &dir), "Projekte");
+        assert_eq!(classify_folder_reason(&test_config(), &dir).0, "Projekte");
     }
 
     #[test]
@@ -268,7 +288,7 @@ mod tests {
         std::fs::create_dir_all(dir.join("sub")).unwrap();
         std::fs::write(dir.join("a.jpg"), b"j").unwrap();
         std::fs::write(dir.join("sub/b.jpg"), b"j").unwrap();
-        assert_eq!(classify_folder(&test_config(), &dir), "Bilder");
+        assert_eq!(classify_folder_reason(&test_config(), &dir).0, "Bilder");
     }
 
     #[test]
@@ -278,7 +298,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("a.jpg"), b"j").unwrap();
         std::fs::write(dir.join("notes.txt"), b"t").unwrap();
-        assert_eq!(classify_folder(&test_config(), &dir), "Projekte");
+        assert_eq!(classify_folder_reason(&test_config(), &dir).0, "Projekte");
     }
 
     #[test]
@@ -293,7 +313,7 @@ mod tests {
             rule("privates", "Privat", &[], &[], &[]),
         );
         config.rules[0].folder_keywords = vec!["urlaub".to_string()];
-        assert_eq!(classify_folder(&config, &dir), "Privat");
+        assert_eq!(classify_folder_reason(&config, &dir).0, "Privat");
     }
 
     #[test]
@@ -303,7 +323,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("slides.md"), b"# slides").unwrap();
         std::fs::write(dir.join(".decker"), b"").unwrap();
-        assert_eq!(classify_folder(&test_config(), &dir), "Projekte");
+        assert_eq!(classify_folder_reason(&test_config(), &dir).0, "Projekte");
     }
 
     #[test]
@@ -312,7 +332,7 @@ mod tests {
         let dir = tmp.path().join("projekt");
         std::fs::create_dir_all(dir.join(".decker")).unwrap();
         std::fs::write(dir.join("slides.md"), b"# slides").unwrap();
-        assert_eq!(classify_folder(&test_config(), &dir), "Projekte");
+        assert_eq!(classify_folder_reason(&test_config(), &dir).0, "Projekte");
     }
 
     #[test]
@@ -321,7 +341,7 @@ mod tests {
         let dir = tmp.path().join("Tool.app");
         std::fs::create_dir_all(dir.join("Contents/MacOS")).unwrap();
         std::fs::write(dir.join("Contents/MacOS/tool"), b"bin").unwrap();
-        assert_eq!(classify_folder(&test_config(), &dir), "Projekte");
+        assert_eq!(classify_folder_reason(&test_config(), &dir).0, "Projekte");
     }
 
     #[test]
@@ -331,6 +351,6 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("a.png"), b"p").unwrap();
         std::fs::write(dir.join(".DS_Store"), b"h").unwrap();
-        assert_eq!(classify_folder(&test_config(), &dir), "Bilder");
+        assert_eq!(classify_folder_reason(&test_config(), &dir).0, "Bilder");
     }
 }

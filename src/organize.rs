@@ -41,6 +41,7 @@ pub struct Outcome {
     pub dst: PathBuf,
     pub category: String,
     pub sha256: String,
+    pub rule: Option<String>,
 }
 
 /// Content-hash index over the target folder. Detects duplicates regardless of
@@ -168,12 +169,12 @@ pub fn process_file(
     } else {
         None
     };
-    let category = classify::classify(config, path, pdf_text.as_deref());
+    let (category, rule_name) = classify::classify_reason(config, path, pdf_text.as_deref());
     let (rel_dir, file_name) = destination_naming(config, path);
     let dest_dir = config.target_dir.join(&category).join(&rel_dir);
 
     index.refresh(&config.target_dir);
-    let outcome = if let Some(existing) = index.lookup(&sha256).map(|p| p.to_path_buf()) {
+    let mut outcome = if let Some(existing) = index.lookup(&sha256).map(|p| p.to_path_buf()) {
         handle_duplicate(config, dry_run, path, &existing, &dest_dir, &file_name, &category, &sha256)?
     } else {
         let existing = dest_dir.join(&file_name);
@@ -184,6 +185,7 @@ pub fn process_file(
         };
         move_file(config, dry_run, path, &dst, Action::Moved, &category, &sha256, index)?
     };
+    outcome.rule = rule_name;
     Ok(Some(outcome))
 }
 
@@ -195,7 +197,7 @@ pub fn process_folder(config: &Config, dry_run: bool, dir: &Path) -> Result<Opti
     if !dir.is_dir() {
         return Ok(None);
     }
-    let category = classify::classify_folder(config, dir);
+    let (category, reason) = classify::classify_folder_reason(config, dir);
     let dest_dir = config.target_dir.join(&category);
     let folder_name: PathBuf = dir.file_name().map(PathBuf::from).unwrap_or_default();
     let dst = free_destination(&dest_dir, &folder_name);
@@ -209,6 +211,7 @@ pub fn process_folder(config: &Config, dry_run: bool, dir: &Path) -> Result<Opti
             dst: dst.clone(),
             category: category.clone(),
             sha256: String::new(),
+            rule: reason.clone(),
         }));
     }
     fs::create_dir_all(&dest_dir)
@@ -252,6 +255,7 @@ pub fn process_folder(config: &Config, dry_run: bool, dir: &Path) -> Result<Opti
         dst,
         category,
         sha256: String::new(),
+        rule: reason,
     }))
 }
 
@@ -350,6 +354,7 @@ fn handle_duplicate(
                 dst: existing.to_path_buf(),
                 category: category.to_string(),
                 sha256: sha256.to_string(),
+                rule: None,
             })
         }
         DuplicateAction::KeepBoth => {
@@ -392,6 +397,7 @@ fn move_file(
             dst: dst.to_path_buf(),
             category: category.to_string(),
             sha256: sha256.to_string(),
+            rule: None,
         });
     }
     let m = Messages::get(config.general.language);
@@ -433,6 +439,7 @@ fn move_file(
         dst: dst.to_path_buf(),
         category: category.to_string(),
         sha256: sha256.to_string(),
+        rule: None,
     })
 }
 

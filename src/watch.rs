@@ -1,6 +1,7 @@
 use crate::config::{Config, FolderMode};
 use crate::i18n::Messages;
 use crate::organize::{self, process_file, process_folder, HashIndex};
+use crate::report;
 use anyhow::Result;
 use notify::event::{AccessKind, AccessMode, ModifyKind};
 use notify::{Event, EventKind, RecursiveMode, Watcher, recommended_watcher};
@@ -9,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{RecvTimeoutError, TryRecvError};
 use std::time::{Duration, Instant};
 
-pub fn run_watch(config: &Config, dry_run: bool) -> Result<()> {
+pub fn run_watch(config: &Config, dry_run: bool, report_path: Option<&Path>) -> Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
     let mut watcher = recommended_watcher(tx)?;
 
@@ -36,7 +37,7 @@ pub fn run_watch(config: &Config, dry_run: bool) -> Result<()> {
             Err(RecvTimeoutError::Disconnected) => break,
         }
 
-        process_due(&mut pending, config, dry_run, debounce, &mut index);
+        process_due(&mut pending, config, dry_run, debounce, &mut index, report_path);
 
         loop {
             match rx.try_recv() {
@@ -101,6 +102,7 @@ fn process_due(
     dry_run: bool,
     debounce: Duration,
     index: &mut HashIndex,
+    report_path: Option<&Path>,
 ) {
     let now = Instant::now();
     let due: Vec<PathBuf> = pending
@@ -116,13 +118,32 @@ fn process_due(
         } else {
             process_file(config, dry_run, &path, index)
         };
-        if let Err(e) = result {
-            let m = Messages::get(config.general.language);
-            log::error!(
-                "{}",
-                crate::i18n::fmt(m.error_processing, &[&path.display(), &format!("{e:#}")])
-            );
+        match result {
+            Ok(Some(outcome)) => write_report(config, dry_run, report_path, Some(&outcome)),
+            Ok(None) => {}
+            Err(e) => {
+                let m = Messages::get(config.general.language);
+                log::error!(
+                    "{}",
+                    crate::i18n::fmt(m.error_processing, &[&path.display(), &format!("{e:#}")])
+                );
+            }
         }
+    }
+}
+
+fn write_report(
+    config: &Config,
+    dry_run: bool,
+    report_path: Option<&Path>,
+    outcome: Option<&organize::Outcome>,
+) {
+    let (Some(report_path), Some(outcome)) = (report_path, outcome) else {
+        return;
+    };
+    if let Err(e) = report::append(report_path, outcome, dry_run) {
+        let m = Messages::get(config.general.language);
+        log::warn!("{}", crate::i18n::fmt(m.report_write_failed, &[&format!("{e:#}")]));
     }
 }
 
@@ -140,7 +161,7 @@ fn unit_root(config: &Config, path: &Path) -> PathBuf {
     path.to_path_buf()
 }
 
-pub fn run_once(config: &Config, dry_run: bool) -> Result<()> {
+pub fn run_once(config: &Config, dry_run: bool, report_path: Option<&Path>) -> Result<()> {
     let m = Messages::get(config.general.language);
     let mut files: Vec<PathBuf> = Vec::new();
     let mut folders: Vec<PathBuf> = Vec::new();
@@ -178,7 +199,10 @@ pub fn run_once(config: &Config, dry_run: bool) -> Result<()> {
     let mut moved = 0usize;
     for dir in &folders {
         match process_folder(config, dry_run, dir) {
-            Ok(Some(_)) => moved += 1,
+            Ok(Some(outcome)) => {
+                moved += 1;
+                write_report(config, dry_run, report_path, Some(&outcome));
+            }
             Ok(None) => {}
             Err(e) => log::error!(
                 "{}",
@@ -190,6 +214,7 @@ pub fn run_once(config: &Config, dry_run: bool) -> Result<()> {
         match process_file(config, dry_run, path, &mut index) {
             Ok(Some(outcome)) if outcome.action == organize::Action::Moved => {
                 moved += 1;
+                write_report(config, dry_run, report_path, Some(&outcome));
                 log::info!(
                     "{:?}: {} → {}",
                     outcome.action,
@@ -197,13 +222,16 @@ pub fn run_once(config: &Config, dry_run: bool) -> Result<()> {
                     outcome.dst.display()
                 );
             }
-            Ok(Some(outcome)) => log::info!(
-                "{:?}: {} (category {}, sha256 {})",
-                outcome.action,
-                outcome.src.display(),
-                outcome.category,
-                &outcome.sha256[..12.min(outcome.sha256.len())]
-            ),
+            Ok(Some(outcome)) => {
+                log::info!(
+                    "{:?}: {} (category {}, sha256 {})",
+                    outcome.action,
+                    outcome.src.display(),
+                    outcome.category,
+                    &outcome.sha256[..12.min(outcome.sha256.len())]
+                );
+                write_report(config, dry_run, report_path, Some(&outcome));
+            }
             Ok(None) => {}
             Err(e) => log::error!(
                 "{}",
@@ -270,5 +298,48 @@ mod tests {
             unit_root(&config, Path::new("/watched/repo/src/main.rs")),
             PathBuf::from("/watched/repo/src/main.rs")
         );
+    }
+
+    #[test]
+    fn once_mode_writes_report_lines_in_dry_run() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut config: Config = toml::from_str(crate::config::DEFAULT_CONFIG).unwrap();
+        config.target_dir = tmp.path().join("target");
+        config.watch.dirs = vec![tmp.path().join("Desktop")];
+        config.notify.enabled = false;
+        let watched = tmp.path().join("Desktop");
+        std::fs::create_dir_all(&watched).unwrap();
+        std::fs::write(watched.join("foto.jpg"), b"j").unwrap();
+        let repo = watched.join("some-repo");
+        std::fs::create_dir_all(&repo).unwrap();
+        std::fs::write(repo.join("main.rs"), b"fn main() {}").unwrap();
+        std::fs::write(repo.join("README.md"), b"# repo").unwrap();
+        let report_path = tmp.path().join("report.jsonl");
+
+        run_once(&config, true, Some(&report_path)).unwrap();
+
+        let raw = std::fs::read_to_string(&report_path).unwrap();
+        let entries: Vec<serde_json::Value> = raw
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert_eq!(entries.len(), 2);
+        assert!(entries
+            .iter()
+            .all(|e| e["dry_run"].as_bool() == Some(true)));
+        let folder_entry = entries
+            .iter()
+            .find(|e| e["action"].as_str() == Some("moved_folder"))
+            .unwrap();
+        assert_eq!(folder_entry["category"].as_str(), Some("Projekte"));
+        assert_eq!(folder_entry["rule"].as_str(), Some("mixed-content"));
+        let file_entry = entries
+            .iter()
+            .find(|e| e["action"].as_str() == Some("moved"))
+            .unwrap();
+        assert_eq!(file_entry["category"].as_str(), Some("Bilder"));
+        assert_eq!(file_entry["rule"].as_str(), Some("bilder"));
+        assert!(watched.join("foto.jpg").exists());
+        assert!(repo.exists());
     }
 }

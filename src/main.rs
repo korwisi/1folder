@@ -9,6 +9,7 @@ mod i18n;
 mod journal;
 mod notify;
 mod organize;
+mod report;
 mod tags;
 mod undo;
 mod watch;
@@ -48,6 +49,12 @@ struct Cli {
         help = "With --undo: only items originally moved from under this directory"
     )]
     src_prefix: Option<PathBuf>,
+    #[arg(
+        long,
+        value_name = "FILE",
+        help = "Append every operation as a JSON line to this file (useful with --dry-run)"
+    )]
+    report: Option<PathBuf>,
 }
 
 fn main() -> Result<()> {
@@ -78,9 +85,9 @@ fn main() -> Result<()> {
     }
 
     if cli.once {
-        watch::run_once(&config, cli.dry_run)
+        watch::run_once(&config, cli.dry_run, cli.report.as_deref())
     } else {
-        watch::run_watch(&config, cli.dry_run)
+        watch::run_watch(&config, cli.dry_run, cli.report.as_deref())
     }
 }
 

@@ -119,6 +119,24 @@ ends up flat as `Bilder/foto.jpg` and the folder context is lost. With
   file name: `Bilder/Abschlussfeier - foto.jpg`
 - `off` (default) ignores the source path
 
+Note: with the default `folders.mode = "move_as_unit"`, folders are moved as
+units and per-file naming never kicks in — `structure`/`prefix` only take
+effect with `folders.mode = "ignore"`. The two settings are alternatives, not
+additives.
+
+### Previewing operations as JSON
+
+`--report <FILE>` appends one JSON line per operation (works in dry-run and
+real runs, `--once` and watch mode):
+
+```sh
+onefolder --once --dry-run --report /tmp/plan.jsonl
+```
+
+Each line contains `ts`, `action` (`moved`, `moved_folder`, …), `src`, `dst`,
+`category`, `rule` (the matching rule name, or why a folder was classified:
+`homogeneous`, `mixed-content`, `project-markers`, `bundle`) and `dry_run`.
+
 ### Folders are moved as units
 
 By default (`folders.mode = "move_as_unit"`) each top-level folder of a watched

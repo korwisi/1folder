@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `--report <FILE>`: appends one JSON line per operation (action, source,
+  destination, category, matching rule or folder-classification reason,
+  dry-run flag); useful with `--dry-run` to preview and audit sorting.
 - `--undo [N|all]` with `--within <duration>` and `--src-prefix <dir>` filters:
   restores files and folders moved by 1folder back to their original locations
   (original structure is recreated), based on the journal. Undone items are
