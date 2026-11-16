@@ -88,6 +88,8 @@ onefolder
 | `watch.stability_wait_ms` | How long a file must stay unchanged before it is processed. |
 | `watch.debounce_ms` | Quiet period after the last filesystem event. |
 | `dedupe.on_duplicate` | `skip`, `keep_both` or `move_to_duplicates`. |
+| `folders.mode` | Folder handling in watched folders: `move_as_unit` (default) or `ignore`. |
+| `folders.subdir` | Category for folders with project markers or mixed content (default `Projekte`). |
 | `notify.enabled` | Toggle Notification Center notifications. |
 | `tags.enabled` | Apply macOS Finder tags to sorted files (no-op elsewhere). |
 | `tags.root_tag` | Extra tag on every sorted file; empty disables it. |
@@ -115,6 +117,24 @@ ends up flat as `Bilder/foto.jpg` and the folder context is lost. With
 - `prefix` keeps the category flat but prepends the parent folder name to the
   file name: `Bilder/Abschlussfeier - foto.jpg`
 - `off` (default) ignores the source path
+
+### Folders are moved as units
+
+By default (`folders.mode = "move_as_unit"`) each top-level folder of a watched
+directory is classified and moved as one unit — internal structure is preserved.
+Classification per folder, first match wins:
+
+1. a rule whose `folder_keywords` match the folder name
+2. project markers (`.git`, `package.json`, `Cargo.toml`, `pyproject.toml`,
+   `go.mod`, `Makefile`, …) → `folders.subdir` (default `Projekte`)
+3. homogeneous content — if every file in the folder falls into the same
+   category, the folder goes there (an images-only folder → `Bilder`)
+4. mixed content (e.g. extracted repositories without markers) → `folders.subdir`
+
+macOS bundles (`.app`, `.bundle`, `.framework`) are always moved as units.
+Safari `.download` bundles, empty folders and hidden folders are left alone.
+Loose files directly in a watched folder are sorted per file as before. Set
+`folders.mode = "ignore"` to restore pure per-file sorting.
 
 ## Running as a background agent (LaunchAgent)
 

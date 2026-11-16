@@ -25,6 +25,22 @@ stability_wait_ms = 5000
 # Quiet period after the last filesystem event before a file is processed.
 debounce_ms = 1000
 
+[folders]
+# How directories in the watched folders are handled:
+#   ignore       = leave folders alone; files inside are sorted individually
+#   move_as_unit = classify each top-level folder and move it as one unit
+#                  (default). Per folder, the first match wins:
+#                  1. a rule whose folder_keywords match the folder name
+#                  2. project markers (.git, package.json, Cargo.toml, …)
+#                     → subdir below
+#                  3. homogeneous content (all files fall into one category)
+#                     → that category, e.g. an images-only folder → "Bilder"
+#                  4. mixed content (e.g. extracted repositories)
+#                     → subdir below
+mode = "move_as_unit"
+# Category for folders with project markers or mixed content.
+subdir = "Projekte"
+
 [dedupe]
 # What happens when a file with identical SHA-256 content already exists in the target?
 #   skip                = keep the source file where it is, never duplicate (default)
@@ -48,8 +64,15 @@ root_tag = "1folder"
 # A rule matches when ALL specified conditions are met:
 #   extensions        – file extension (without dot, case-insensitive)
 #   filename_keywords – substring of the file name (case-insensitive)
+#   folder_keywords   – substring of a folder name (only applies to folders)
 #   pdf_keywords      – substring of the text on the first 3 PDF pages (.pdf only)
 # A rule without any condition matches everything (catch-all rule).
+
+# Example: route folders by name before marker/homogeneous detection kicks in.
+# [[rules]]
+# name = "privates"
+# subdir = "Privat"
+# folder_keywords = ["urlaub", "familie", "abschlussfeier"]
 
 [[rules]]
 name = "wissenschaftliche-papers"

@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Folder handling (`[folders]` section, default `mode = "move_as_unit"`): each
+  top-level folder of a watched directory is classified and moved as one unit,
+  preserving its internal structure. Classification order: rules with the new
+  `folder_keywords` condition → project markers (`.git`, `package.json`,
+  `Cargo.toml`, …) → homogeneous content (an images-only folder goes to
+  `Bilder`) → mixed content goes to `folders.subdir` (default `Projekte`).
+  macOS bundles (`.app`, `.bundle`, `.framework`) are always moved as units;
+  Safari `.download` bundles, empty and hidden folders are left alone.
+  `folders.mode = "ignore"` restores the previous per-file sorting.
+
+### Fixed
+- `[dedupe]` missing from the config no longer yields an empty
+  `duplicates_subdir` (would have moved duplicates to the target root).
+
+### Added
 - `general.preserve_source_paths` option to keep the source folder context of
   sorted files: `structure` recreates the relative path from the watched folder
   under the category subfolder, `prefix` prepends the parent folder name to the

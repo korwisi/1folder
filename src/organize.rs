@@ -16,6 +16,7 @@ const PARTIAL_DOWNLOAD_EXTS: &[&str] = &["crdownload", "part", "partial", "downl
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
     Moved,
+    MovedFolder,
     DuplicateSkipped,
     KeptBoth,
     MovedToDuplicates,
@@ -25,6 +26,7 @@ impl Action {
     pub fn as_str(&self) -> &'static str {
         match self {
             Action::Moved => "moved",
+            Action::MovedFolder => "moved_folder",
             Action::DuplicateSkipped => "duplicate_skipped",
             Action::KeptBoth => "kept_both",
             Action::MovedToDuplicates => "moved_to_duplicates",
@@ -113,6 +115,25 @@ pub fn is_partial_download(path: &Path) -> bool {
     })
 }
 
+pub fn folder_should_process(config: &Config, dir: &Path) -> bool {
+    if !dir.is_dir() {
+        return false;
+    }
+    if is_hidden(dir) || is_under(dir, &config.target_dir) {
+        return false;
+    }
+    if config.watch.dirs.iter().any(|d| d == dir) {
+        return false;
+    }
+    if is_partial_download(dir) {
+        return false;
+    }
+    match fs::read_dir(dir) {
+        Ok(mut entries) => entries.next().is_some(),
+        Err(_) => false,
+    }
+}
+
 pub fn should_process(config: &Config, path: &Path) -> bool {
     if path.is_dir() || !path.exists() {
         return false;
@@ -164,6 +185,74 @@ pub fn process_file(
         move_file(config, dry_run, path, &dst, Action::Moved, &category, &sha256, index)?
     };
     Ok(Some(outcome))
+}
+
+pub fn process_folder(config: &Config, dry_run: bool, dir: &Path) -> Result<Option<Outcome>> {
+    if !folder_should_process(config, dir) {
+        return Ok(None);
+    }
+    wait_until_stable(dir, Duration::from_millis(config.watch.stability_wait_ms));
+    if !dir.is_dir() {
+        return Ok(None);
+    }
+    let category = classify::classify_folder(config, dir);
+    let dest_dir = config.target_dir.join(&category);
+    let folder_name: PathBuf = dir.file_name().map(PathBuf::from).unwrap_or_default();
+    let dst = free_destination(&dest_dir, &folder_name);
+    let m = Messages::get(config.general.language);
+
+    if dry_run {
+        log::info!("[dry-run] {} → {}", dir.display(), dst.display());
+        return Ok(Some(Outcome {
+            action: Action::MovedFolder,
+            src: dir.to_path_buf(),
+            dst: dst.clone(),
+            category: category.clone(),
+            sha256: String::new(),
+        }));
+    }
+    fs::create_dir_all(&dest_dir)
+        .with_context(|| crate::i18n::fmt(m.dir_not_creatable, &[&dest_dir.display()]))?;
+    move_dir_raw(dir, &dst).with_context(|| {
+        crate::i18n::fmt(m.move_failed, &[&dir.display(), &dst.display()])
+    })?;
+    log::info!("{} → {}", dir.display(), dst.display());
+    notify::maybe_notify(
+        &config.notify,
+        m.folder_sorted_title,
+        &format!(
+            "{} → {}",
+            dir.file_name().map(|n| n.to_string_lossy()).unwrap_or_default(),
+            dst.display()
+        ),
+    );
+    journal::append(
+        &config.journal_path(),
+        Action::MovedFolder.as_str(),
+        dir,
+        &dst,
+        &category,
+        "",
+    )?;
+    let rule_color = config
+        .rules
+        .iter()
+        .find(|r| r.subdir == category)
+        .and_then(|r| r.color);
+    tags::apply(
+        &config.tags,
+        config.general.language,
+        &dst,
+        &category,
+        rule_color,
+    );
+    Ok(Some(Outcome {
+        action: Action::MovedFolder,
+        src: dir.to_path_buf(),
+        dst,
+        category,
+        sha256: String::new(),
+    }))
 }
 
 fn destination_naming(config: &Config, path: &Path) -> (PathBuf, PathBuf) {
@@ -345,6 +434,35 @@ fn move_file(
         category: category.to_string(),
         sha256: sha256.to_string(),
     })
+}
+
+fn move_dir_raw(src: &Path, dst: &Path) -> Result<()> {
+    match fs::rename(src, dst) {
+        Ok(()) => Ok(()),
+        Err(e)
+            if e.kind() == std::io::ErrorKind::CrossesDevices || e.raw_os_error() == Some(18) =>
+        {
+            copy_dir_recursive(src, dst)?;
+            fs::remove_dir_all(src)?;
+            Ok(())
+        }
+        Err(e) => Err(e.into()),
+    }
+}
+
+fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let from = entry.path();
+        let to = dst.join(entry.file_name());
+        if from.is_dir() {
+            copy_dir_recursive(&from, &to)?;
+        } else {
+            fs::copy(&from, &to)?;
+        }
+    }
+    Ok(())
 }
 
 fn move_raw(src: &Path, dst: &Path) -> Result<()> {
@@ -622,6 +740,87 @@ mod tests {
         process_file(&config, false, &src, &mut HashIndex::new()).unwrap();
         assert!(target.join("Bilder/foto.jpg").exists());
         assert!(!target.join("Bilder/alter-desktop").exists());
+    }
+
+    #[test]
+    fn moves_homogeneous_folder_as_unit() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target = tmp.path().join("target");
+        let watched = tmp.path().join("Desktop");
+        let mut config = config_with_target(&target);
+        config.watch.dirs = vec![watched.clone()];
+        let dir = watched.join("Abschlussfeier");
+        fs::create_dir_all(dir.join("sub")).unwrap();
+        std::fs::write(dir.join("a.jpg"), b"j").unwrap();
+        std::fs::write(dir.join("sub/b.jpg"), b"j").unwrap();
+
+        let outcome = process_folder(&config, false, &dir).unwrap().unwrap();
+        assert_eq!(outcome.action, Action::MovedFolder);
+        assert_eq!(outcome.category, "Bilder");
+        assert!(target.join("Bilder/Abschlussfeier/a.jpg").exists());
+        assert!(target.join("Bilder/Abschlussfeier/sub/b.jpg").exists());
+        assert!(!dir.exists());
+        assert!(config.journal_path().exists());
+    }
+
+    #[test]
+    fn moves_mixed_folder_to_folders_subdir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target = tmp.path().join("target");
+        let watched = tmp.path().join("Desktop");
+        let mut config = config_with_target(&target);
+        config.watch.dirs = vec![watched.clone()];
+        let dir = watched.join("some-repo");
+        fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("main.rs"), b"fn main() {}").unwrap();
+        std::fs::write(dir.join("README.md"), b"# repo").unwrap();
+
+        let outcome = process_folder(&config, false, &dir).unwrap().unwrap();
+        assert_eq!(outcome.category, "Projekte");
+        assert!(target.join("Projekte/some-repo/main.rs").exists());
+        assert!(!dir.exists());
+    }
+
+    #[test]
+    fn empty_hidden_and_partial_folders_are_left_alone() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target = tmp.path().join("target");
+        let watched = tmp.path().join("Desktop");
+        let mut config = config_with_target(&target);
+        config.watch.dirs = vec![watched.clone()];
+        let empty = watched.join("leer");
+        fs::create_dir_all(&empty).unwrap();
+        let hidden = watched.join(".versteckt");
+        fs::create_dir_all(&hidden).unwrap();
+        let partial = watched.join("bericht.zip.download");
+        fs::create_dir_all(&partial).unwrap();
+
+        assert!(process_folder(&config, false, &empty).unwrap().is_none());
+        assert!(process_folder(&config, false, &hidden).unwrap().is_none());
+        assert!(process_folder(&config, false, &partial).unwrap().is_none());
+        assert!(empty.exists());
+        assert!(hidden.exists());
+        assert!(partial.exists());
+    }
+
+    #[test]
+    fn folder_moves_avoid_name_collisions() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target = tmp.path().join("target");
+        let watched1 = tmp.path().join("Desktop1");
+        let watched2 = tmp.path().join("Desktop2");
+        let mut config = config_with_target(&target);
+        config.watch.dirs = vec![watched1.clone(), watched2.clone()];
+        for watched in [&watched1, &watched2] {
+            let dir = watched.join("fotos");
+            fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("a.jpg"), b"j").unwrap();
+        }
+
+        process_folder(&config, false, &watched1.join("fotos")).unwrap();
+        process_folder(&config, false, &watched2.join("fotos")).unwrap();
+        assert!(target.join("Bilder/fotos/a.jpg").exists());
+        assert!(target.join("Bilder/fotos (2)/a.jpg").exists());
     }
 
     #[test]

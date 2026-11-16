@@ -1,6 +1,32 @@
 use crate::config::Config;
 use std::path::Path;
 
+const PROJECT_MARKERS: &[&str] = &[
+    ".git",
+    ".gitignore",
+    ".hg",
+    ".svn",
+    ".venv",
+    ".xcodeproj",
+    "CMakeLists.txt",
+    "Cargo.lock",
+    "Cargo.toml",
+    "Gemfile",
+    "Makefile",
+    "__pycache__",
+    "build.gradle",
+    "go.mod",
+    "node_modules",
+    "package.json",
+    "package-lock.json",
+    "pom.xml",
+    "pyproject.toml",
+    "requirements.txt",
+    "setup.py",
+    "venv",
+    "yarn.lock",
+];
+
 pub fn file_extension(path: &Path) -> String {
     path.extension()
         .map(|e| e.to_string_lossy().to_lowercase())
@@ -40,6 +66,70 @@ pub fn classify(config: &Config, path: &Path, pdf_text: Option<&str>) -> String 
         }
     }
     config.fallback_subdir.clone()
+}
+
+pub fn classify_folder(config: &Config, dir: &Path) -> String {
+    let folder_name = dir
+        .file_name()
+        .map(|n| n.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    for rule in &config.rules {
+        if rule
+            .folder_keywords
+            .iter()
+            .any(|k| folder_name.contains(&k.to_lowercase()))
+        {
+            log::debug!(
+                "{} → Folder-Regel '{}' ({})",
+                dir.display(),
+                rule.name,
+                rule.subdir
+            );
+            return rule.subdir.clone();
+        }
+    }
+    if is_bundle(dir) || has_project_markers(dir) {
+        return config.folders.subdir.clone();
+    }
+    homogeneous_category(config, dir).unwrap_or_else(|| config.folders.subdir.clone())
+}
+
+fn is_bundle(dir: &Path) -> bool {
+    dir.extension()
+        .map(|e| {
+            let e = e.to_string_lossy().to_lowercase();
+            e == "app" || e == "bundle" || e == "framework"
+        })
+        .unwrap_or(false)
+}
+
+fn has_project_markers(dir: &Path) -> bool {
+    for entry in walkdir::WalkDir::new(dir).follow_links(false).max_depth(3) {
+        let Ok(entry) = entry else { continue };
+        let name = entry.file_name().to_string_lossy();
+        if PROJECT_MARKERS.contains(&name.as_ref()) {
+            return true;
+        }
+    }
+    false
+}
+
+fn homogeneous_category(config: &Config, dir: &Path) -> Option<String> {
+    let mut category: Option<String> = None;
+    for entry in walkdir::WalkDir::new(dir).follow_links(false) {
+        let Ok(entry) = entry else { continue };
+        let path = entry.path();
+        if !entry.file_type().is_file() || is_hidden(path) {
+            continue;
+        }
+        let current = classify(config, path, None);
+        match &category {
+            None => category = Some(current),
+            Some(existing) if *existing == current => {}
+            _ => return None,
+        }
+    }
+    category
 }
 
 fn rule_matches(rule: &crate::config::Rule, ext: &str, file_name: &str, pdf_text: Option<&str>) -> bool {
@@ -95,6 +185,7 @@ mod tests {
             subdir: subdir.to_string(),
             extensions: ext.iter().map(|s| s.to_string()).collect(),
             filename_keywords: file_kw.iter().map(|s| s.to_string()).collect(),
+            folder_keywords: vec![],
             pdf_keywords: pdf_kw.iter().map(|s| s.to_string()).collect(),
             color: None,
         }
@@ -152,5 +243,68 @@ mod tests {
         let mut config = test_config();
         config.rules = vec![rule("alle", "Alles", &[], &[], &[])];
         assert_eq!(classify(&config, &path("x.unknown"), None), "Alles");
+    }
+
+    #[test]
+    fn folder_with_project_markers_goes_to_folders_subdir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("some-repo");
+        std::fs::create_dir_all(dir.join(".git")).unwrap();
+        std::fs::write(dir.join("main.rs"), b"fn main() {}").unwrap();
+        assert_eq!(classify_folder(&test_config(), &dir), "Projekte");
+    }
+
+    #[test]
+    fn homogeneous_image_folder_goes_to_bilder() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("Abschlussfeier");
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        std::fs::write(dir.join("a.jpg"), b"j").unwrap();
+        std::fs::write(dir.join("sub/b.jpg"), b"j").unwrap();
+        assert_eq!(classify_folder(&test_config(), &dir), "Bilder");
+    }
+
+    #[test]
+    fn mixed_content_folder_goes_to_folders_subdir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("extracted");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.jpg"), b"j").unwrap();
+        std::fs::write(dir.join("notes.txt"), b"t").unwrap();
+        assert_eq!(classify_folder(&test_config(), &dir), "Projekte");
+    }
+
+    #[test]
+    fn folder_keyword_rule_matches_folder_name() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("Urlaub_2024");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("strand.jpg"), b"j").unwrap();
+        let mut config = test_config();
+        config.rules.insert(
+            0,
+            rule("privates", "Privat", &[], &[], &[]),
+        );
+        config.rules[0].folder_keywords = vec!["urlaub".to_string()];
+        assert_eq!(classify_folder(&config, &dir), "Privat");
+    }
+
+    #[test]
+    fn app_bundles_go_to_folders_subdir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("Tool.app");
+        std::fs::create_dir_all(dir.join("Contents/MacOS")).unwrap();
+        std::fs::write(dir.join("Contents/MacOS/tool"), b"bin").unwrap();
+        assert_eq!(classify_folder(&test_config(), &dir), "Projekte");
+    }
+
+    #[test]
+    fn hidden_files_do_not_break_homogeneity() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("fotos");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.png"), b"p").unwrap();
+        std::fs::write(dir.join(".DS_Store"), b"h").unwrap();
+        assert_eq!(classify_folder(&test_config(), &dir), "Bilder");
     }
 }

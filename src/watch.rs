@@ -1,11 +1,11 @@
-use crate::config::Config;
+use crate::config::{Config, FolderMode};
 use crate::i18n::Messages;
-use crate::organize::{self, process_file, HashIndex};
+use crate::organize::{self, process_file, process_folder, HashIndex};
 use anyhow::Result;
 use notify::event::{AccessKind, AccessMode, ModifyKind};
 use notify::{Event, EventKind, RecursiveMode, Watcher, recommended_watcher};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{RecvTimeoutError, TryRecvError};
 use std::time::{Duration, Instant};
 
@@ -110,7 +110,13 @@ fn process_due(
         .collect();
     for path in due {
         pending.remove(&path);
-        if let Err(e) = process_file(config, dry_run, &path, index) {
+        let unit = unit_root(config, &path);
+        let result = if unit.is_dir() {
+            process_folder(config, dry_run, &unit)
+        } else {
+            process_file(config, dry_run, &path, index)
+        };
+        if let Err(e) = result {
             let m = Messages::get(config.general.language);
             log::error!(
                 "{}",
@@ -120,30 +126,66 @@ fn process_due(
     }
 }
 
+fn unit_root(config: &Config, path: &Path) -> PathBuf {
+    if config.folders.mode != FolderMode::MoveAsUnit {
+        return path.to_path_buf();
+    }
+    for dir in &config.watch.dirs {
+        if let Ok(rel) = path.strip_prefix(dir) {
+            if let Some(first) = rel.components().next() {
+                return dir.join(first);
+            }
+        }
+    }
+    path.to_path_buf()
+}
+
 pub fn run_once(config: &Config, dry_run: bool) -> Result<()> {
     let m = Messages::get(config.general.language);
     let mut files: Vec<PathBuf> = Vec::new();
+    let mut folders: Vec<PathBuf> = Vec::new();
     for dir in &config.watch.dirs {
         if !dir.is_dir() {
             log::warn!("{}", crate::i18n::fmt(m.watch_dir_missing, &[&dir.display()]));
             continue;
         }
-        for entry in walkdir::WalkDir::new(dir).follow_links(false) {
-            match entry {
-                Ok(entry) => {
-                    let path = entry.path();
-                    if organize::should_process(config, path) {
-                        files.push(path.to_path_buf());
-                    }
+        let mut entries: Vec<PathBuf> = std::fs::read_dir(dir)
+            .map(|entries| {
+                entries
+                    .filter_map(|e| e.ok())
+                    .map(|e| e.path())
+                    .collect()
+            })
+            .unwrap_or_default();
+        entries.sort();
+        for path in entries {
+            if path.is_dir() {
+                if config.folders.mode == FolderMode::MoveAsUnit
+                    && organize::folder_should_process(config, &path)
+                {
+                    folders.push(path);
                 }
-                Err(e) => log::warn!("{}", crate::i18n::fmt(m.scanning_failed, &[&e])),
+            } else if organize::should_process(config, &path) {
+                files.push(path);
             }
         }
     }
-    files.sort();
-    log::info!("{}", crate::i18n::fmt(m.files_to_check, &[&files.len()]));
+    log::info!(
+        "{}",
+        crate::i18n::fmt(m.items_to_check, &[&(files.len() + folders.len())])
+    );
     let mut index = HashIndex::new();
     let mut moved = 0usize;
+    for dir in &folders {
+        match process_folder(config, dry_run, dir) {
+            Ok(Some(_)) => moved += 1,
+            Ok(None) => {}
+            Err(e) => log::error!(
+                "{}",
+                crate::i18n::fmt(m.error_processing, &[&dir.display(), &format!("{e:#}")])
+            ),
+        }
+    }
     for path in &files {
         match process_file(config, dry_run, path, &mut index) {
             Ok(Some(outcome)) if outcome.action == organize::Action::Moved => {
@@ -191,5 +233,42 @@ mod tests {
         assert!(!organize::is_partial_download(Path::new("~/Downloads/ubuntu.iso")));
         assert!(!organize::is_partial_download(Path::new("~/Downloads/bericht.pdf")));
         assert!(!organize::is_partial_download(Path::new("~/Downloads/tmp_foto.jpg")));
+    }
+
+    fn watch_config(dirs: &[&str]) -> Config {
+        let mut config: Config = toml::from_str(crate::config::DEFAULT_CONFIG).unwrap();
+        config.watch.dirs = dirs.iter().map(PathBuf::from).collect();
+        config
+    }
+
+    #[test]
+    fn unit_root_maps_to_top_level_folder_in_unit_mode() {
+        let config = watch_config(&["/watched"]);
+        assert_eq!(
+            unit_root(&config, Path::new("/watched/repo/src/main.rs")),
+            PathBuf::from("/watched/repo")
+        );
+        assert_eq!(
+            unit_root(&config, Path::new("/watched/repo")),
+            PathBuf::from("/watched/repo")
+        );
+        assert_eq!(
+            unit_root(&config, Path::new("/watched/loose.txt")),
+            PathBuf::from("/watched/loose.txt")
+        );
+        assert_eq!(
+            unit_root(&config, Path::new("/elsewhere/file.txt")),
+            PathBuf::from("/elsewhere/file.txt")
+        );
+    }
+
+    #[test]
+    fn unit_root_returns_path_itself_in_ignore_mode() {
+        let mut config = watch_config(&["/watched"]);
+        config.folders.mode = crate::config::FolderMode::Ignore;
+        assert_eq!(
+            unit_root(&config, Path::new("/watched/repo/src/main.rs")),
+            PathBuf::from("/watched/repo/src/main.rs")
+        );
     }
 }
