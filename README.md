@@ -160,12 +160,11 @@ Brand assets live in [`assets/`](assets/):
   GitHub; transparent background on a square canvas
 - `icon/onefolder-folder-icon-*.png` – complete motif (documents flowing into
   the one folder), compact icon layout (16–1024 px)
-- `icon/onefolder-folder-icon-simple-*.png` – reduced variant with a single
-  document card
-- `icon/onefolder-folder-icon-bw-*.png` / `*-simple-bw-*.png` – black-and-white
-  versions of both
-- `icon/onefolder*.icns` – ready-to-use macOS icon sets (color and
-  black-and-white, full and simple motif)
+- `icon/onefolder-folder-icon-simple-*.png` – pure black silhouette of the
+  complete motif (single color, ideal for small sizes and monochrome contexts)
+- `icon/onefolder-folder-icon-bw-*.png` – black-and-white (grayscale) version
+- `icon/onefolder*.icns` – ready-to-use macOS icon sets (color, grayscale and
+  silhouette)
 
 To use it as a macOS folder icon: select the folder in Finder → `Cmd+I` → drag
 `onefolder-folder-icon-simple-512.png` (or an `.icns` file) onto the icon at the
