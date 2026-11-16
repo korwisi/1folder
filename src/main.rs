@@ -130,8 +130,40 @@ fn init_config(path: Option<PathBuf>) -> Result<()> {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("Directory not creatable: {}", parent.display()))?;
     }
-    std::fs::write(&path, config::DEFAULT_CONFIG)
+    
+    let mut config_text = config::DEFAULT_CONFIG.to_string();
+    
+    eprintln!("Choose your preferred language:");
+    eprintln!("  1) German (de) - default");
+    eprintln!("  2) English (en)");
+    eprint!("Your choice (1 or 2, default: 1): ");
+    use std::io::BufRead;
+    let stdin = std::io::stdin();
+    let mut input = String::new();
+    stdin.lock().read_line(&mut input)?;
+    
+    let use_english = matches!(input.trim(), "2");
+    if use_english {
+        config_text = config_text.replace(
+            "language = \"de\"",
+            "language = \"en\""
+        ).replace(
+            "\"Duplikate\"",
+            "\"Duplicates\""
+        ).replace(
+            "\"Sammlungen\"",
+            "\"Collections\""
+        ).replace(
+            "\"Sonstiges\"",
+            "\"Miscellaneous\""
+        );
+    }
+    
+    std::fs::write(&path, config_text)
         .with_context(|| format!("Config not writable: {}", path.display()))?;
-    println!("Default config written: {}", path.display());
+    
+    let lang = if use_english { "English" } else { "German" };
+    println!("Default config written: {} (language: {})", path.display(), lang);
+    println!("Next: edit the config file to adjust target_dir, watch.dirs, and rules");
     Ok(())
 }
