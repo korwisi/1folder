@@ -82,11 +82,15 @@ onefolder
 | Setting | Meaning |
 | --- | --- |
 | `general.language` | Language for log output and notifications: `en` (default) or `de`. |
+| `general.preserve_source_paths` | How to keep the source folder context: `off` (default), `structure` or `prefix`. |
 | `target_dir` | The one folder everything is consolidated into. |
 | `watch.dirs` | Folders to watch (tilde-expanded). |
 | `watch.stability_wait_ms` | How long a file must stay unchanged before it is processed. |
 | `watch.debounce_ms` | Quiet period after the last filesystem event. |
 | `dedupe.on_duplicate` | `skip`, `keep_both` or `move_to_duplicates`. |
+| `folders.mode` | Folder handling in watched folders: `move_as_unit` (default) or `ignore`. |
+| `folders.subdir` | Category for folders with project markers or mixed content (default `Sammlungen`). |
+| `folders.markers` | Extra project markers (files/folders like `.decker`) detected in addition to the built-in list. |
 | `notify.enabled` | Toggle Notification Center notifications. |
 | `tags.enabled` | Apply macOS Finder tags to sorted files (no-op elsewhere). |
 | `tags.root_tag` | Extra tag on every sorted file; empty disables it. |
@@ -102,6 +106,84 @@ A rule matches when **all** specified conditions are met:
 
 Example: keep scientific papers before generic PDF rules by listing the `Papers`
 rule first.
+
+### Preserving the source folder context
+
+By default a file like `~/Desktop/alter-desktop/bilder/Abschlussfeier/foto.jpg`
+ends up flat as `Bilder/foto.jpg` and the folder context is lost. With
+`general.preserve_source_paths` you can keep it:
+
+- `structure` recreates the relative path from the watched folder under the
+  category: `Bilder/alter-desktop/bilder/Abschlussfeier/foto.jpg`
+- `prefix` keeps the category flat but prepends the parent folder name to the
+  file name: `Bilder/Abschlussfeier - foto.jpg`
+- `off` (default) ignores the source path
+
+Note: with the default `folders.mode = "move_as_unit"`, folders are moved as
+units and per-file naming never kicks in — `structure`/`prefix` only take
+effect with `folders.mode = "ignore"`. The two settings are alternatives, not
+additives.
+
+### Previewing operations as JSON
+
+`--report <FILE>` appends one JSON line per operation (works in dry-run and
+real runs, `--once` and watch mode):
+
+```sh
+onefolder --once --dry-run --report /tmp/plan.jsonl
+```
+
+Each line contains `ts`, `action` (`moved`, `moved_folder`, …), `src`, `dst`,
+`category`, `rule` (the matching rule name, or why a folder was classified:
+`homogeneous`, `mixed-content`, `project-markers`, `bundle`) and `dry_run`.
+
+### Folders are moved as units
+
+By default (`folders.mode = "move_as_unit"`) each top-level folder of a watched
+directory is classified and moved as one unit — internal structure is preserved.
+Classification per folder, first match wins:
+
+1. a rule whose `folder_keywords` match the folder name
+2. project markers (`.git`, `package.json`, `Cargo.toml`, `pyproject.toml`,
+   `go.mod`, `Makefile`, …, plus your own via `folders.markers`, e.g.
+   `.decker` for decker presentation projects) → `folders.subdir`
+   (default `Sammlungen`)
+3. homogeneous content — if every file in the folder falls into the same
+   category, the folder goes there (an images-only folder → `Bilder`)
+4. mixed content (e.g. extracted repositories without markers) → `folders.subdir`
+
+macOS bundles (`.app`, `.bundle`, `.framework`) are always moved as units.
+Safari `.download` bundles, empty folders and hidden folders are left alone.
+Loose files directly in a watched folder are sorted per file as before. Set
+`folders.mode = "ignore"` to restore pure per-file sorting.
+
+## Undo
+
+Every action is recorded in an append-only journal at
+`<target_dir>/.1folder-journal.jsonl` (one JSON line per action, including the
+original and destination path). The journal is the history — plain text, no
+database — and powers undo:
+
+```sh
+onefolder --undo                # restore the last moved item
+onefolder --undo 10             # restore the last 10 items
+onefolder --undo all            # restore everything still reversible
+onefolder --undo all --within 30m     # only items moved in the last 30 minutes
+onefolder --undo all --src-prefix ~/Desktop/alter-desktop   # only items from there
+onefolder --undo all --dry-run  # preview what would be restored
+```
+
+Undo moves files and folders back to their original location, recreating the
+original folder structure. If something now occupies the original spot, the
+restored item is saved next to it as `name (2).ext` — nothing is ever
+overwritten. Restored items are marked in the journal and cannot be undone a
+second time. Items that were only detected as duplicates (`skip`) were never
+moved and are ignored.
+
+Note: quit the background agent before undoing (`launchctl unload`), otherwise
+restored files in watched folders may trigger the sorter again. With the
+default `dedupe.on_duplicate = "skip"` they would stay put, but other settings
+could create copies.
 
 ## Running as a background agent (LaunchAgent)
 

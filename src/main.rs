@@ -9,7 +9,9 @@ mod i18n;
 mod journal;
 mod notify;
 mod organize;
+mod report;
 mod tags;
+mod undo;
 mod watch;
 
 #[derive(Parser)]
@@ -27,6 +29,32 @@ struct Cli {
     dry_run: bool,
     #[arg(long, help = "Write the default configuration and exit")]
     init_config: bool,
+    #[arg(
+        long,
+        value_name = "N|all",
+        num_args = 0..=1,
+        default_missing_value = "1",
+        help = "Undo moves recorded in the journal: the last N items, or 'all'"
+    )]
+    undo: Option<String>,
+    #[arg(
+        long,
+        value_name = "DURATION",
+        help = "With --undo: only items moved within this duration, e.g. 30m, 2h, 1d"
+    )]
+    within: Option<String>,
+    #[arg(
+        long,
+        value_name = "DIR",
+        help = "With --undo: only items originally moved from under this directory"
+    )]
+    src_prefix: Option<PathBuf>,
+    #[arg(
+        long,
+        value_name = "FILE",
+        help = "Append every operation as a JSON line to this file (useful with --dry-run)"
+    )]
+    report: Option<PathBuf>,
 }
 
 fn main() -> Result<()> {
@@ -37,7 +65,7 @@ fn main() -> Result<()> {
         return init_config(cli.config);
     }
 
-    let config_path = match cli.config {
+    let config_path = match cli.config.clone() {
         Some(path) => path,
         None => config::default_config_path().context(
             "No default config location found on this system; pass --config <FILE> explicitly",
@@ -52,11 +80,41 @@ fn main() -> Result<()> {
     let config = config::Config::load(&config_path)?;
     log::debug!("Config loaded from {}", config_path.display());
 
-    if cli.once {
-        watch::run_once(&config, cli.dry_run)
-    } else {
-        watch::run_watch(&config, cli.dry_run)
+    if let Some(undo_arg) = &cli.undo {
+        return run_undo(&config, &cli, undo_arg);
     }
+
+    if cli.once {
+        watch::run_once(&config, cli.dry_run, cli.report.as_deref())
+    } else {
+        watch::run_watch(&config, cli.dry_run, cli.report.as_deref())
+    }
+}
+
+fn run_undo(config: &config::Config, cli: &Cli, undo_arg: &str) -> Result<()> {
+    let m = i18n::Messages::get(config.general.language);
+    let all = undo_arg.eq_ignore_ascii_case("all");
+    let count = undo_arg.parse::<usize>().ok();
+    if !all && count.is_none() {
+        anyhow::bail!(
+            "{}",
+            i18n::fmt(m.undo_invalid_target, &[&undo_arg])
+        );
+    }
+    let within = match &cli.within {
+        Some(raw) => match undo::parse_duration(raw) {
+            Some(duration) => Some(duration),
+            None => anyhow::bail!("{}", i18n::fmt(m.undo_invalid_within, &[raw])),
+        },
+        None => None,
+    };
+    let selection = undo::UndoSelection {
+        all,
+        count,
+        within,
+        src_prefix: cli.src_prefix.as_deref().map(config::expand_tilde),
+    };
+    undo::run(config, cli.dry_run, &selection)
 }
 
 fn init_config(path: Option<PathBuf>) -> Result<()> {

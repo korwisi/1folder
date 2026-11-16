@@ -18,6 +18,8 @@ pub struct Config {
     #[serde(default)]
     pub tags: TagsConfig,
     #[serde(default)]
+    pub folders: FoldersConfig,
+    #[serde(default)]
     pub rules: Vec<Rule>,
     #[serde(default = "default_fallback_subdir")]
     pub fallback_subdir: String,
@@ -27,6 +29,45 @@ pub struct Config {
 pub struct GeneralConfig {
     #[serde(default)]
     pub language: Language,
+    #[serde(default)]
+    pub preserve_source_paths: PreserveMode,
+}
+
+#[derive(Debug, Deserialize, Clone, Copy, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PreserveMode {
+    #[default]
+    Off,
+    Structure,
+    Prefix,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct FoldersConfig {
+    #[serde(default)]
+    pub mode: FolderMode,
+    #[serde(default = "default_folders_subdir")]
+    pub subdir: String,
+    #[serde(default)]
+    pub markers: Vec<String>,
+}
+
+impl Default for FoldersConfig {
+    fn default() -> Self {
+        Self {
+            mode: FolderMode::default(),
+            subdir: default_folders_subdir(),
+            markers: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Copy, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum FolderMode {
+    Ignore,
+    #[default]
+    MoveAsUnit,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -38,12 +79,21 @@ pub struct WatchConfig {
     pub debounce_ms: u64,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct DedupeConfig {
     #[serde(default)]
     pub on_duplicate: DuplicateAction,
     #[serde(default = "default_duplicates_subdir")]
     pub duplicates_subdir: String,
+}
+
+impl Default for DedupeConfig {
+    fn default() -> Self {
+        Self {
+            on_duplicate: DuplicateAction::default(),
+            duplicates_subdir: default_duplicates_subdir(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Copy, Default, PartialEq, Eq)]
@@ -78,6 +128,8 @@ pub struct Rule {
     #[serde(default)]
     pub filename_keywords: Vec<String>,
     #[serde(default)]
+    pub folder_keywords: Vec<String>,
+    #[serde(default)]
     pub pdf_keywords: Vec<String>,
     #[serde(default)]
     pub color: Option<u8>,
@@ -91,6 +143,9 @@ fn default_debounce_ms() -> u64 {
 }
 fn default_duplicates_subdir() -> String {
     "Duplikate".to_string()
+}
+fn default_folders_subdir() -> String {
+    "Sammlungen".to_string()
 }
 fn default_fallback_subdir() -> String {
     "Sonstiges".to_string()
@@ -150,6 +205,16 @@ mod tests {
         assert!(!config.rules.is_empty());
         assert_eq!(config.fallback_subdir, "Sonstiges");
         assert_eq!(config.dedupe.on_duplicate, DuplicateAction::Skip);
+        assert_eq!(config.folders.mode, FolderMode::MoveAsUnit);
+        assert_eq!(config.folders.subdir, "Sammlungen");
+    }
+
+    #[test]
+    fn folder_mode_defaults_to_move_as_unit() {
+        let config: Config =
+            toml::from_str("target_dir = '/tmp/t'\n[watch]\ndirs = ['/w']").unwrap();
+        assert_eq!(config.folders.mode, FolderMode::MoveAsUnit);
+        assert_eq!(config.folders.subdir, "Sammlungen");
     }
 
     #[test]

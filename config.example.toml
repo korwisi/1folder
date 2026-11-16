@@ -7,6 +7,14 @@ target_dir = "~/Documents/1folder"
 [general]
 # Language for log output and notifications: "en" (default) or "de".
 language = "en"
+# How to preserve the source folder context of a file, e.g. a file in
+# "~/Desktop/alter-desktop/bilder/Abschlussfeier/" when "~/Desktop" is watched:
+#   off        = ignore the source path (default): "Bilder/foto.jpg"
+#   structure  = recreate the relative path under the category:
+#                "Bilder/alter-desktop/bilder/Abschlussfeier/foto.jpg"
+#   prefix     = keep the category flat, but prepend the parent folder name:
+#                "Bilder/Abschlussfeier - foto.jpg"
+preserve_source_paths = "off"
 
 [watch]
 # Folders to watch. New or changed files are moved to the target automatically.
@@ -16,6 +24,27 @@ dirs = ["~/Downloads", "~/Desktop"]
 stability_wait_ms = 5000
 # Quiet period after the last filesystem event before a file is processed.
 debounce_ms = 1000
+
+[folders]
+# How directories in the watched folders are handled:
+#   ignore       = leave folders alone; files inside are sorted individually
+#   move_as_unit = classify each top-level folder and move it as one unit
+#                  (default). Per folder, the first match wins:
+#                  1. a rule whose folder_keywords match the folder name
+#                  2. project markers (.git, package.json, Cargo.toml, …)
+#                     → subdir below
+#                  3. homogeneous content (all files fall into one category)
+#                     → that category, e.g. an images-only folder → "Bilder"
+#                  4. mixed content (e.g. extracted repositories)
+#                     → subdir below
+mode = "move_as_unit"
+# Category for folders with project markers or mixed content.
+subdir = "Sammlungen"
+# Extra project markers detected in addition to the built-in list
+# (.git, package.json, Cargo.toml, …). A folder containing one of these
+# files or folders is moved as a unit to `subdir`. Example: ".decker"
+# marks decker (reveal.js) presentation projects.
+markers = [".decker"]
 
 [dedupe]
 # What happens when a file with identical SHA-256 content already exists in the target?
@@ -40,8 +69,15 @@ root_tag = "1folder"
 # A rule matches when ALL specified conditions are met:
 #   extensions        – file extension (without dot, case-insensitive)
 #   filename_keywords – substring of the file name (case-insensitive)
+#   folder_keywords   – substring of a folder name (only applies to folders)
 #   pdf_keywords      – substring of the text on the first 3 PDF pages (.pdf only)
 # A rule without any condition matches everything (catch-all rule).
+
+# Example: route folders by name before marker/homogeneous detection kicks in.
+# [[rules]]
+# name = "privates"
+# subdir = "Privat"
+# folder_keywords = ["urlaub", "familie", "abschlussfeier"]
 
 [[rules]]
 name = "wissenschaftliche-papers"
@@ -67,17 +103,38 @@ color = 6
 [[rules]]
 name = "bilder"
 subdir = "Bilder"
-extensions = ["jpg", "jpeg", "png", "heic", "gif", "webp", "tiff", "svg"]
+extensions = ["jpg", "jpeg", "png", "heic", "gif", "webp", "tiff", "svg", "cr2", "cr3", "nef", "arw", "dng", "raf", "orf", "rw2"]
+
+[[rules]]
+name = "3d-druck"
+subdir = "3D-Druck"
+extensions = ["stl", "scad", "3mf", "gcode", "curaprofile", "ipt", "f3d", "obj", "step", "stp"]
+
+[[rules]]
+name = "videos"
+subdir = "Videos"
+extensions = ["mp4", "mov", "mkv", "avi", "webm", "m4v"]
+
+[[rules]]
+name = "audio"
+subdir = "Audio"
+extensions = ["mp3", "wav", "m4a", "flac", "aac", "ogg"]
 
 [[rules]]
 name = "archive"
 subdir = "Archive"
-extensions = ["zip", "tar", "gz", "tgz", "7z", "rar", "dmg", "pkg"]
+extensions = ["zip", "tar", "gz", "tgz", "7z", "rar", "dmg", "pkg", "iso", "img", "bin"]
 
 [[rules]]
 name = "dokumente"
 subdir = "Dokumente"
 extensions = ["doc", "docx", "xls", "xlsx", "ppt", "pptx", "pages", "numbers", "key", "rtf", "txt", "md"]
+
+# Catch-all for PDFs that matched none of the keyword rules above.
+[[rules]]
+name = "pdf-allgemein"
+subdir = "Dokumente"
+extensions = ["pdf"]
 
 # Where files go when no rule matches.
 fallback_subdir = "Sonstiges"
