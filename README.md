@@ -39,6 +39,8 @@ documents and moves everything into a single, structured target folder.
 
 ### Build and install
 
+#### For your machine
+
 ```sh
 git clone https://github.com/korwisi/1folder
 cd 1folder
@@ -46,6 +48,21 @@ cargo build --release
 # binary: target/release/onefolder
 sudo cp target/release/onefolder /usr/local/bin/
 ```
+
+#### Universal binary (Intel + Apple Silicon)
+
+Build a single binary that runs natively on both architectures:
+
+```sh
+./build-universal.sh
+# binary: target/universal-release/onefolder
+sudo cp target/universal-release/onefolder /usr/local/bin/
+```
+
+Requirements:
+- Rust installed via [rustup](https://rustup.rs) (not Homebrew; enables cross-compilation)
+- Both targets installed: `rustup target add x86_64-apple-darwin aarch64-apple-darwin`
+- Xcode Command Line Tools (includes `lipo`): `xcode-select --install`
 
 ### Setup
 

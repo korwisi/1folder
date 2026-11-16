@@ -31,13 +31,11 @@ committed to a release; pick freely.
 
 ## Builds and releases
 
-- [ ] Release builds for Apple Silicon: the v0.3.0 binary was built on Intel.
-      Build for `aarch64-apple-darwin` as well, or ship a single
-      universal binary (`lipo` of both arches) so one asset covers
-      Intel and Apple Silicon Macs.
+- [x] Release builds for Apple Silicon: added `build-universal.sh` script
+      to create universal binaries (`lipo` of both Intel and Apple Silicon arches)
+      so one asset covers both Intel and Apple Silicon Macs. See README for setup.
 - [ ] Automate release artifacts with GitHub Actions: build on tag push
-      (`macos-latest` runner, `cargo build --release`, universal binary via
-      `rustup target add x86_64-apple-darwin aarch64-apple-darwin` + `lipo`),
+      (`macos-latest` runner, universal binary via `build-universal.sh`),
       and attach the result to the GitHub Release automatically.
 - [ ] Consider code signing / notarization so macOS Gatekeeper does not
       quarantine downloaded binaries (needs an Apple Developer ID).
