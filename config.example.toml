@@ -5,8 +5,8 @@
 target_dir = "~/Documents/1folder"
 
 [general]
-# Language for log output and notifications: "en" (default) or "de".
-language = "en"
+# Language for log output and notifications: "en" or "de" (default).
+language = "de"
 # How to preserve the source folder context of a file, e.g. a file in
 # "~/Desktop/alter-desktop/bilder/Abschlussfeier/" when "~/Desktop" is watched:
 #   off        = ignore the source path (default): "Bilder/foto.jpg"

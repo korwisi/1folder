@@ -81,7 +81,7 @@ onefolder
 
 | Setting | Meaning |
 | --- | --- |
-| `general.language` | Language for log output and notifications: `en` (default) or `de`. |
+| `general.language` | Language for log output and notifications: `de` (default) or `en`. |
 | `general.preserve_source_paths` | How to keep the source folder context: `off` (default), `structure` or `prefix`. |
 | `target_dir` | The one folder everything is consolidated into. |
 | `watch.dirs` | Folders to watch (tilde-expanded). |
