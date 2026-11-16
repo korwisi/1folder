@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-16
+
+### Added
+- **Persistent SHA-256 index**: target folder now caches file hashes in
+  `.1folder_index.json`, eliminating the need to rehash all files on startup.
+  The index stores path, size, modification time, and hash for each file; hashes
+  are reused only when file metadata matches, and new/changed files are rehashed.
+  On first run with a large collection, indexing can take several minutes; all
+  subsequent runs load the index from disk and respond immediately to changes.
+  Index reconciliation handles missing files automatically, and atomic writes
+  (temp file + rename) prevent corruption from manual changes or interruptions.
+
+### Changed
+- Persistent index now skips `.DS_Store` and other system metadata files to keep
+  index size minimal and avoid indexing macOS-specific cruft.
+
+### Fixed
+- README now documents that the first run with a large target folder can take
+  several minutes during initial indexing; clarifies that this is a one-time
+  cost and subsequent runs are much faster.
+
 ## [0.4.0] - 2026-11-16
 
 ### Added
