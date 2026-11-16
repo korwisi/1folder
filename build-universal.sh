@@ -13,11 +13,16 @@ set -e
 #   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 BINARY_NAME="onefolder"
-RELEASE_DIR="target/release"
 UNIVERSAL_DIR="target/universal-release"
 
-# Check if rustup is available
-if ! command -v rustup &> /dev/null; then
+# Find rustup - check PATH first, then ~/.cargo/bin
+if command -v rustup &> /dev/null; then
+    RUSTUP="rustup"
+    CARGO="cargo"
+elif [ -f ~/.cargo/bin/rustup ]; then
+    RUSTUP=~/.cargo/bin/rustup
+    CARGO=~/.cargo/bin/cargo
+else
     echo "❌ Error: rustup not found. This script requires Rust installed via rustup."
     echo
     echo "To install rustup and set up cross-compilation targets:"
@@ -30,14 +35,14 @@ fi
 
 # Check if targets are installed
 echo "Checking Rust targets..."
-if ! rustup target list | grep -q "x86_64-apple-darwin (installed)"; then
+if ! $RUSTUP target list | grep -q "x86_64-apple-darwin (installed)"; then
     echo "Installing x86_64-apple-darwin target..."
-    rustup target add x86_64-apple-darwin
+    $RUSTUP target add x86_64-apple-darwin
 fi
 
-if ! rustup target list | grep -q "aarch64-apple-darwin (installed)"; then
+if ! $RUSTUP target list | grep -q "aarch64-apple-darwin (installed)"; then
     echo "Installing aarch64-apple-darwin target..."
-    rustup target add aarch64-apple-darwin
+    $RUSTUP target add aarch64-apple-darwin
 fi
 
 echo "🔨 Building universal binary for macOS (Intel + Apple Silicon)"
@@ -48,11 +53,11 @@ mkdir -p "$UNIVERSAL_DIR"
 
 # Build for x86_64 (Intel)
 echo "📦 Building for x86_64-apple-darwin (Intel)..."
-cargo build --release --target x86_64-apple-darwin
+$CARGO build --release --target x86_64-apple-darwin
 
 # Build for aarch64 (Apple Silicon)
 echo "📦 Building for aarch64-apple-darwin (Apple Silicon)..."
-cargo build --release --target aarch64-apple-darwin
+$CARGO build --release --target aarch64-apple-darwin
 
 # Create universal binary
 INTEL_BINARY="target/x86_64-apple-darwin/release/$BINARY_NAME"
