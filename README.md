@@ -157,6 +157,24 @@ Safari `.download` bundles, empty folders and hidden folders are left alone.
 Loose files directly in a watched folder are sorted per file as before. Set
 `folders.mode = "ignore"` to restore pure per-file sorting.
 
+### Renaming categories
+
+The target folder is user-owned: 1folder never re-sorts, renames or "fixes"
+anything inside it, so you can restructure it freely at any time — even while
+the agent is running. Renaming a category folder, however, does not update the
+config, so new files would keep going to the old name. To rename a category
+safely:
+
+1. Quit the background agent (`launchctl unload`).
+2. Update the category name in `config.toml` wherever it is referenced:
+   `rules[].subdir`, `fallback_subdir`, `folders.subdir`,
+   `dedupe.duplicates_subdir`.
+3. Rename the folder inside the target: `mv <target>/Bilder <target>/Photos`.
+4. Retag the moved files: they carry the category name as a Finder tag, so
+   search for the old tag (`tag:Bilder`), select everything and assign the new
+   tag (removing the old one keeps Spotlight and Smart Folders consistent).
+5. Start the agent again.
+
 ## Undo
 
 Every action is recorded in an append-only journal at
@@ -184,6 +202,11 @@ Note: quit the background agent before undoing (`launchctl unload`), otherwise
 restored files in watched folders may trigger the sorter again. With the
 default `dedupe.on_duplicate = "skip"` they would stay put, but other settings
 could create copies.
+
+Note: moving or renaming previously sorted items inside the target folder is
+safe, but it invalidates their journal entries — undo then skips them with a
+warning. See [Renaming categories](#renaming-categories) for the safe rename
+procedure.
 
 ## Running as a background agent (LaunchAgent)
 

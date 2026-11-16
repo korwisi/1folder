@@ -18,6 +18,17 @@ committed to a release; pick freely.
       where the user put them; revisit only if there is a real need, and
       never move them silently.
 
+## Target folder maintenance
+
+- [ ] `onefolder rename-category <old> <new>`: rename a category end-to-end —
+      update every config reference (`rules[].subdir`, `fallback_subdir`,
+      `folders.subdir`, `dedupe.duplicates_subdir`) in place while preserving
+      comments, rename the folder in the target (with collision validation),
+      retag the files with the new category tag (macOS-gated), journal the
+      action, and remind the user to restart the agent. An explicit command,
+      not automatic detection of manual renames; see the "Renaming categories"
+      section in the README for the manual procedure this would automate.
+
 ## Builds and releases
 
 - [ ] Release builds for Apple Silicon: the v0.3.0 binary was built on Intel.
