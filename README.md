@@ -158,12 +158,18 @@ Brand assets live in [`assets/`](assets/):
 
 - `logo/onefolder-logo-*.png` – full logo (folder + documents) for websites and
   GitHub; transparent background on a square canvas
-- `icon/onefolder-folder-icon-*.png` – reduced folder-only icon (16–1024 px)
-- `icon/onefolder.icns` – ready-to-use macOS icon set (16–1024 px)
+- `icon/onefolder-folder-icon-*.png` – complete motif (documents flowing into
+  the one folder), compact icon layout (16–1024 px)
+- `icon/onefolder-folder-icon-simple-*.png` – reduced variant with a single
+  document card
+- `icon/onefolder-folder-icon-bw-*.png` / `*-simple-bw-*.png` – black-and-white
+  versions of both
+- `icon/onefolder*.icns` – ready-to-use macOS icon sets (color and
+  black-and-white, full and simple motif)
 
 To use it as a macOS folder icon: select the folder in Finder → `Cmd+I` → drag
-`onefolder-folder-icon-512.png` (or `onefolder.icns`) onto the icon at the top
-left of the info panel.
+`onefolder-folder-icon-simple-512.png` (or an `.icns` file) onto the icon at the
+top left of the info panel.
 
 ## License
 
