@@ -1,0 +1,8 @@
+#!/bin/sh
+message_file="${1:-}"
+if [ -z "$message_file" ] || [ ! -f "$message_file" ]; then exit 0; fi
+trailer='Co-authored-by: korwisi <korwisi@users.noreply.github.com>'
+grep -Fq "$trailer" "$message_file" && exit 0
+author_email=$(git config --get user.email | tr '[:upper:]' '[:lower:]')
+[ "$author_email" = "korwisi@users.noreply.github.com" ] && exit 0
+printf '\n%s\n' "$trailer" >> "$message_file"

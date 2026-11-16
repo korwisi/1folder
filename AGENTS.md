@@ -55,5 +55,9 @@ There is no CI pipeline yet; run `cargo test` and `cargo clippy` before committi
   Kristof Korwisi); the coding agent adds itself as co-author via the trailer
   `Co-authored-by: Vibe Code <vibe@users.noreply.github.com>`. Other AI tools
   use their own `Co-authored-by` trailer instead.
+- `hooks/commit-msg` appends `Co-authored-by: korwisi <korwisi@users.noreply.github.com>`
+  to commits authored by anyone else (e.g. coding agents committing under their
+  own identity) and skips the trailer when the author already is the repository
+  owner. Activate it after cloning with `git config core.hooksPath hooks`.
 - macOS-only behavior (notifications) must stay `#[cfg]`-gated so `cargo check`
   and tests pass on Linux.
