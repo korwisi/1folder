@@ -145,7 +145,7 @@ fn default_duplicates_subdir() -> String {
     "Duplikate".to_string()
 }
 fn default_folders_subdir() -> String {
-    "Projekte".to_string()
+    "Sammlungen".to_string()
 }
 fn default_fallback_subdir() -> String {
     "Sonstiges".to_string()
@@ -206,7 +206,7 @@ mod tests {
         assert_eq!(config.fallback_subdir, "Sonstiges");
         assert_eq!(config.dedupe.on_duplicate, DuplicateAction::Skip);
         assert_eq!(config.folders.mode, FolderMode::MoveAsUnit);
-        assert_eq!(config.folders.subdir, "Projekte");
+        assert_eq!(config.folders.subdir, "Sammlungen");
     }
 
     #[test]
@@ -214,7 +214,7 @@ mod tests {
         let config: Config =
             toml::from_str("target_dir = '/tmp/t'\n[watch]\ndirs = ['/w']").unwrap();
         assert_eq!(config.folders.mode, FolderMode::MoveAsUnit);
-        assert_eq!(config.folders.subdir, "Projekte");
+        assert_eq!(config.folders.subdir, "Sammlungen");
     }
 
     #[test]

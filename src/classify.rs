@@ -254,9 +254,9 @@ mod tests {
     }
 
     #[test]
-    fn pdf_keyword_rule_requires_text() {
+    fn pdf_without_keyword_match_falls_back_to_catch_all() {
         let config = test_config();
-        assert_eq!(classify(&config, &path("unbekannt.pdf"), None), "Sonstiges");
+        assert_eq!(classify(&config, &path("unbekannt.pdf"), None), "Dokumente");
     }
 
     #[test]
@@ -278,7 +278,7 @@ mod tests {
         let dir = tmp.path().join("some-repo");
         std::fs::create_dir_all(dir.join(".git")).unwrap();
         std::fs::write(dir.join("main.rs"), b"fn main() {}").unwrap();
-        assert_eq!(classify_folder_reason(&test_config(), &dir).0, "Projekte");
+        assert_eq!(classify_folder_reason(&test_config(), &dir).0, "Sammlungen");
     }
 
     #[test]
@@ -298,7 +298,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("a.jpg"), b"j").unwrap();
         std::fs::write(dir.join("notes.txt"), b"t").unwrap();
-        assert_eq!(classify_folder_reason(&test_config(), &dir).0, "Projekte");
+        assert_eq!(classify_folder_reason(&test_config(), &dir).0, "Sammlungen");
     }
 
     #[test]
@@ -323,7 +323,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("slides.md"), b"# slides").unwrap();
         std::fs::write(dir.join(".decker"), b"").unwrap();
-        assert_eq!(classify_folder_reason(&test_config(), &dir).0, "Projekte");
+        assert_eq!(classify_folder_reason(&test_config(), &dir).0, "Sammlungen");
     }
 
     #[test]
@@ -332,7 +332,7 @@ mod tests {
         let dir = tmp.path().join("projekt");
         std::fs::create_dir_all(dir.join(".decker")).unwrap();
         std::fs::write(dir.join("slides.md"), b"# slides").unwrap();
-        assert_eq!(classify_folder_reason(&test_config(), &dir).0, "Projekte");
+        assert_eq!(classify_folder_reason(&test_config(), &dir).0, "Sammlungen");
     }
 
     #[test]
@@ -341,7 +341,7 @@ mod tests {
         let dir = tmp.path().join("Tool.app");
         std::fs::create_dir_all(dir.join("Contents/MacOS")).unwrap();
         std::fs::write(dir.join("Contents/MacOS/tool"), b"bin").unwrap();
-        assert_eq!(classify_folder_reason(&test_config(), &dir).0, "Projekte");
+        assert_eq!(classify_folder_reason(&test_config(), &dir).0, "Sammlungen");
     }
 
     #[test]

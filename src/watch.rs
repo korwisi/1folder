@@ -331,7 +331,7 @@ mod tests {
             .iter()
             .find(|e| e["action"].as_str() == Some("moved_folder"))
             .unwrap();
-        assert_eq!(folder_entry["category"].as_str(), Some("Projekte"));
+        assert_eq!(folder_entry["category"].as_str(), Some("Sammlungen"));
         assert_eq!(folder_entry["rule"].as_str(), Some("mixed-content"));
         let file_entry = entries
             .iter()

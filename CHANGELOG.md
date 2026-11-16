@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   preserving its internal structure. Classification order: rules with the new
   `folder_keywords` condition → project markers (`.git`, `package.json`,
   `Cargo.toml`, …) → homogeneous content (an images-only folder goes to
-  `Bilder`) → mixed content goes to `folders.subdir` (default `Projekte`).
+  `Bilder`) → mixed content goes to `folders.subdir` (default `Sammlungen`).
   macOS bundles (`.app`, `.bundle`, `.framework`) are always moved as units;
   Safari `.download` bundles, empty and hidden folders are left alone.
   `folders.mode = "ignore"` restores the previous per-file sorting.
@@ -37,6 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Disc images (`iso`, `img`, `bin`) are sorted into `Archive` and camera RAW
   formats (`cr2`, `cr3`, `nef`, `arw`, `dng`, `raf`, `orf`, `rw2`) into `Bilder`
   in the default rules.
+- New default rules: 3D printing (`3D-Druck`: `stl`, `scad`, `3mf`, `gcode`,
+  `curaprofile`, `ipt`, `f3d`, `obj`, `step`, `stp`), videos (`Videos`) and
+  audio (`Audio`), plus a PDF catch-all into `Dokumente` after the keyword
+  rules.
+- Default `folders.subdir` renamed from `Projekte` to `Sammlungen`: the bucket
+  mostly holds mixed-content folders (model/font/app downloads), not only
+  projects. Existing configs keep their own `subdir` value.
 
 ### Fixed
 - `[dedupe]` missing from the config no longer yields an empty

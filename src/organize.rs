@@ -604,7 +604,7 @@ mod tests {
         process_file(&config, false, &src1, &mut index).unwrap();
         let outcome = process_file(&config, false, &src2, &mut index).unwrap().unwrap();
         assert_eq!(outcome.action, Action::Moved);
-        assert!(target.join("Sonstiges/report (2).pdf").exists());
+        assert!(target.join("Dokumente/report (2).pdf").exists());
     }
 
     #[test]
@@ -783,8 +783,8 @@ mod tests {
         std::fs::write(dir.join("README.md"), b"# repo").unwrap();
 
         let outcome = process_folder(&config, false, &dir).unwrap().unwrap();
-        assert_eq!(outcome.category, "Projekte");
-        assert!(target.join("Projekte/some-repo/main.rs").exists());
+        assert_eq!(outcome.category, "Sammlungen");
+        assert!(target.join("Sammlungen/some-repo/main.rs").exists());
         assert!(!dir.exists());
     }
 

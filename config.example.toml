@@ -39,7 +39,7 @@ debounce_ms = 1000
 #                     → subdir below
 mode = "move_as_unit"
 # Category for folders with project markers or mixed content.
-subdir = "Projekte"
+subdir = "Sammlungen"
 # Extra project markers detected in addition to the built-in list
 # (.git, package.json, Cargo.toml, …). A folder containing one of these
 # files or folders is moved as a unit to `subdir`. Example: ".decker"
@@ -106,6 +106,21 @@ subdir = "Bilder"
 extensions = ["jpg", "jpeg", "png", "heic", "gif", "webp", "tiff", "svg", "cr2", "cr3", "nef", "arw", "dng", "raf", "orf", "rw2"]
 
 [[rules]]
+name = "3d-druck"
+subdir = "3D-Druck"
+extensions = ["stl", "scad", "3mf", "gcode", "curaprofile", "ipt", "f3d", "obj", "step", "stp"]
+
+[[rules]]
+name = "videos"
+subdir = "Videos"
+extensions = ["mp4", "mov", "mkv", "avi", "webm", "m4v"]
+
+[[rules]]
+name = "audio"
+subdir = "Audio"
+extensions = ["mp3", "wav", "m4a", "flac", "aac", "ogg"]
+
+[[rules]]
 name = "archive"
 subdir = "Archive"
 extensions = ["zip", "tar", "gz", "tgz", "7z", "rar", "dmg", "pkg", "iso", "img", "bin"]
@@ -114,6 +129,12 @@ extensions = ["zip", "tar", "gz", "tgz", "7z", "rar", "dmg", "pkg", "iso", "img"
 name = "dokumente"
 subdir = "Dokumente"
 extensions = ["doc", "docx", "xls", "xlsx", "ppt", "pptx", "pages", "numbers", "key", "rtf", "txt", "md"]
+
+# Catch-all for PDFs that matched none of the keyword rules above.
+[[rules]]
+name = "pdf-allgemein"
+subdir = "Dokumente"
+extensions = ["pdf"]
 
 # Where files go when no rule matches.
 fallback_subdir = "Sonstiges"

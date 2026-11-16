@@ -237,10 +237,10 @@ mod tests {
         fs::write(dir.join(".decker"), b"").unwrap();
         fs::write(dir.join("assets/slide.png"), b"p").unwrap();
         process_folder(&config, false, &dir).unwrap().unwrap();
-        assert!(config.target_dir.join("Projekte/vorlesung").exists());
+        assert!(config.target_dir.join("Sammlungen/vorlesung").exists());
 
         run(&config, false, &selection(true, None)).unwrap();
-        assert!(!config.target_dir.join("Projekte/vorlesung").exists());
+        assert!(!config.target_dir.join("Sammlungen/vorlesung").exists());
         assert!(dir.join(".decker").exists());
         assert!(dir.join("assets/slide.png").exists());
     }
