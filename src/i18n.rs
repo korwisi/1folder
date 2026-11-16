@@ -119,7 +119,7 @@ mod tests {
         let de = Messages::get(Language::De);
         assert_ne!(en.watching, de.watching);
         assert_ne!(en.file_sorted_title, de.file_sorted_title);
-        assert_eq!(en.duplicate_skipped_log.contains("{}"), true);
+        assert!(en.duplicate_skipped_log.contains("{}"));
         assert_eq!(de.duplicate_skipped_log.matches("{}").count(), 2);
     }
 

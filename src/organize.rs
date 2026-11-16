@@ -175,7 +175,7 @@ pub fn process_file(
 
     index.refresh(&config.target_dir);
     let mut outcome = if let Some(existing) = index.lookup(&sha256).map(|p| p.to_path_buf()) {
-        handle_duplicate(config, dry_run, path, &existing, &dest_dir, &file_name, &category, &sha256)?
+        handle_duplicate(config, dry_run, path, &existing, &dest_dir, &file_name, &category, &sha256, index)?
     } else {
         let existing = dest_dir.join(&file_name);
         let dst = if existing.exists() {
@@ -319,6 +319,7 @@ fn handle_duplicate(
     file_name: &Path,
     category: &str,
     sha256: &str,
+    index: &mut HashIndex,
 ) -> Result<Outcome> {
     match config.dedupe.on_duplicate {
         DuplicateAction::Skip => {
@@ -359,7 +360,7 @@ fn handle_duplicate(
         }
         DuplicateAction::KeepBoth => {
             let dst = free_destination(dest_dir, file_name);
-            move_file(config, dry_run, src, &dst, Action::KeptBoth, category, sha256, &mut HashIndex::new())
+            move_file(config, dry_run, src, &dst, Action::KeptBoth, category, sha256, index)
         }
         DuplicateAction::MoveToDuplicates => {
             let dup_dir = config.target_dir.join(&config.dedupe.duplicates_subdir);
@@ -372,7 +373,7 @@ fn handle_duplicate(
                 Action::MovedToDuplicates,
                 &config.dedupe.duplicates_subdir,
                 sha256,
-                &mut HashIndex::new(),
+                index,
             )
         }
     }
@@ -499,13 +500,13 @@ pub fn free_destination(dest_dir: &Path, file_name: &Path) -> PathBuf {
         .extension()
         .map(|e| format!(".{}", e.to_string_lossy()))
         .unwrap_or_default();
-    for n in 2.. {
+    for n in 2..=10000 {
         let candidate = dest_dir.join(format!("{stem} ({n}){ext}"));
         if !candidate.exists() {
             return candidate;
         }
     }
-    unreachable!()
+    dest_dir.join(format!("{stem} (collision-{:x}){ext}", chrono::Local::now().timestamp_millis()))
 }
 
 fn wait_until_stable(path: &Path, max_wait: Duration) -> bool {
