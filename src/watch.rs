@@ -28,7 +28,7 @@ pub fn run_watch(config: &Config, dry_run: bool, report_path: Option<&Path>) -> 
 
     let debounce = Duration::from_millis(config.watch.debounce_ms);
     let mut pending: HashMap<PathBuf, Instant> = HashMap::new();
-    let mut index = HashIndex::new();
+    let mut index = HashIndex::with_target(&config.target_dir)?;
 
     loop {
         match rx.recv_timeout(Duration::from_millis(200)) {
@@ -37,16 +37,20 @@ pub fn run_watch(config: &Config, dry_run: bool, report_path: Option<&Path>) -> 
             Err(RecvTimeoutError::Disconnected) => break,
         }
 
-        process_due(&mut pending, config, dry_run, debounce, &mut index, report_path);
+        process_due(&mut pending, config, dry_run, debounce, &mut index, report_path)?;
 
         loop {
             match rx.try_recv() {
                 Ok(event) => handle_event(event, &mut pending, debounce, m),
                 Err(TryRecvError::Empty) => break,
-                Err(TryRecvError::Disconnected) => return Ok(()),
+                Err(TryRecvError::Disconnected) => {
+                    index.flush().ok();
+                    return Ok(());
+                }
             }
         }
     }
+    index.flush()?;
     Ok(())
 }
 
@@ -103,13 +107,14 @@ fn process_due(
     debounce: Duration,
     index: &mut HashIndex,
     report_path: Option<&Path>,
-) {
+) -> Result<()> {
     let now = Instant::now();
     let due: Vec<PathBuf> = pending
         .iter()
         .filter(|(_, seen)| now.duration_since(**seen) >= debounce)
         .map(|(path, _)| path.clone())
         .collect();
+    let has_due = !due.is_empty();
     for path in due {
         pending.remove(&path);
         let unit = unit_root(config, &path);
@@ -130,6 +135,10 @@ fn process_due(
             }
         }
     }
+    if has_due {
+        index.flush()?;
+    }
+    Ok(())
 }
 
 fn write_report(
@@ -195,7 +204,7 @@ pub fn run_once(config: &Config, dry_run: bool, report_path: Option<&Path>) -> R
         "{}",
         crate::i18n::fmt(m.items_to_check, &[&(files.len() + folders.len())])
     );
-    let mut index = HashIndex::new();
+    let mut index = HashIndex::with_target(&config.target_dir)?;
     let mut moved = 0usize;
     for dir in &folders {
         match process_folder(config, dry_run, dir) {
@@ -240,6 +249,7 @@ pub fn run_once(config: &Config, dry_run: bool, report_path: Option<&Path>) -> R
         }
     }
     log::info!("{}", crate::i18n::fmt(m.done_sorted, &[&moved]));
+    index.flush()?;
     Ok(())
 }
 

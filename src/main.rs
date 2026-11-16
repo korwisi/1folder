@@ -6,6 +6,7 @@ mod classify;
 mod config;
 mod hash;
 mod i18n;
+mod index;
 mod journal;
 mod notify;
 mod organize;

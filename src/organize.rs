@@ -2,14 +2,14 @@ use crate::classify::{self, is_hidden, is_under};
 use crate::config::{Config, DuplicateAction, PreserveMode};
 use crate::hash::sha256_file;
 use crate::i18n::Messages;
+use crate::index::PersistentIndex;
 use crate::journal;
 use crate::notify;
 use crate::tags;
 use anyhow::{Context, Result};
-use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant};
 
 const PARTIAL_DOWNLOAD_EXTS: &[&str] = &["crdownload", "part", "partial", "download", "tmp"];
 
@@ -46,9 +46,10 @@ pub struct Outcome {
 
 /// Content-hash index over the target folder. Detects duplicates regardless of
 /// file names; unchanged files (same size + mtime) keep their cached hash.
+/// Persists to disk so startup and each incoming file do not require rehashing
+/// the entire target folder.
 pub struct HashIndex {
-    cache: HashMap<PathBuf, (u64, Option<SystemTime>, String)>,
-    by_hash: HashMap<String, PathBuf>,
+    persistent: PersistentIndex,
 }
 
 impl Default for HashIndex {
@@ -60,48 +61,36 @@ impl Default for HashIndex {
 impl HashIndex {
     pub fn new() -> Self {
         Self {
-            cache: HashMap::new(),
-            by_hash: HashMap::new(),
+            persistent: PersistentIndex::load_or_create(Path::new(".")).unwrap_or_else(|_| {
+                log::warn!("Failed to load persistent index, starting with fresh cache");
+                PersistentIndex::load_or_create(Path::new("."))
+                    .expect("Failed to create index")
+            }),
         }
+    }
+
+    pub fn with_target(target: &Path) -> Result<Self> {
+        Ok(Self {
+            persistent: PersistentIndex::load_or_create(target)?,
+        })
     }
 
     pub fn refresh(&mut self, target: &Path) {
-        let mut entries: Vec<PathBuf> = Vec::new();
-        for entry in walkdir::WalkDir::new(target).follow_links(false) {
-            let Ok(entry) = entry else { continue };
-            if entry.file_type().is_file() {
-                entries.push(entry.path().to_path_buf());
-            }
+        if let Err(e) = self.persistent.refresh(target) {
+            log::warn!("Failed to refresh index: {}", e);
         }
-        entries.sort();
-        let mut fresh_cache = HashMap::new();
-        let mut by_hash = HashMap::new();
-        for path in entries {
-            let meta = match fs::metadata(&path) {
-                Ok(m) => m,
-                Err(_) => continue,
-            };
-            let key = (meta.len(), meta.modified().ok());
-            let hash = match self.cache.get(&path) {
-                Some((len, modified, hash)) if *len == key.0 && *modified == key.1 => hash.clone(),
-                _ => match sha256_file(&path) {
-                    Ok(h) => h,
-                    Err(_) => continue,
-                },
-            };
-            by_hash.entry(hash.clone()).or_insert_with(|| path.clone());
-            fresh_cache.insert(path, (key.0, key.1, hash));
-        }
-        self.cache = fresh_cache;
-        self.by_hash = by_hash;
     }
 
     pub fn lookup(&self, sha256: &str) -> Option<&Path> {
-        self.by_hash.get(sha256).map(|p| p.as_path())
+        self.persistent.lookup(sha256)
     }
 
     pub fn insert(&mut self, sha256: &str, path: &Path) {
-        self.by_hash.entry(sha256.to_string()).or_insert_with(|| path.to_path_buf());
+        self.persistent.insert(sha256, path);
+    }
+
+    pub fn flush(&mut self) -> Result<()> {
+        self.persistent.flush()
     }
 }
 
