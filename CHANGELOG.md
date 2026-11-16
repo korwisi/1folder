@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `--undo [N|all]` with `--within <duration>` and `--src-prefix <dir>` filters:
+  restores files and folders moved by 1folder back to their original locations
+  (original structure is recreated), based on the journal. Undone items are
+  marked in the journal, collisions at the original location are renamed, and
+  `--dry-run` previews the restoration.
 - Folder handling (`[folders]` section, default `mode = "move_as_unit"`): each
   top-level folder of a watched directory is classified and moved as one unit,
   preserving its internal structure. Classification order: rules with the new
@@ -21,11 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   presentation projects) detected in addition to the built-in list; folders
   containing them are moved as units to `folders.subdir`.
 
-### Fixed
-- `[dedupe]` missing from the config no longer yields an empty
-  `duplicates_subdir` (would have moved duplicates to the target root).
-
-### Added
 - `general.preserve_source_paths` option to keep the source folder context of
   sorted files: `structure` recreates the relative path from the watched folder
   under the category subfolder, `prefix` prepends the parent folder name to the
@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Disc images (`iso`, `img`, `bin`) are sorted into `Archive` and camera RAW
   formats (`cr2`, `cr3`, `nef`, `arw`, `dng`, `raf`, `orf`, `rw2`) into `Bilder`
   in the default rules.
+
+### Fixed
+- `[dedupe]` missing from the config no longer yields an empty
+  `duplicates_subdir` (would have moved duplicates to the target root).
 
 ## [0.2.1] - 2026-11-13
 

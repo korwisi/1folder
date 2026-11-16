@@ -31,7 +31,10 @@ There is no CI pipeline yet; run `cargo test` and `cargo clippy` before committi
   `HashIndex` caches content hashes of the target folder
 - `src/i18n.rs` – `Language` and `Messages` tables (EN/DE) for user-facing strings
 - `src/classify.rs` – rule matching and PDF text extraction (lopdf)
-- `src/journal.rs` – JSONL action log in the target folder
+- `src/journal.rs` – JSONL action log in the target folder (the history that
+  powers `--undo`)
+- `src/undo.rs` – `--undo [N|all]` with `--within`/`--src-prefix` filters;
+  restores journal entries and marks them undone
 - `src/notify.rs` – macOS notifications via `osascript`, log-only elsewhere
 - `src/tags.rs` – Finder tags via `com.apple.metadata:_kMDItemUserTags` xattr
   (binary plist), no-op on non-macOS; configured in `[tags]`, per-rule `color`

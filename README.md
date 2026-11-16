@@ -139,6 +139,34 @@ Safari `.download` bundles, empty folders and hidden folders are left alone.
 Loose files directly in a watched folder are sorted per file as before. Set
 `folders.mode = "ignore"` to restore pure per-file sorting.
 
+## Undo
+
+Every action is recorded in an append-only journal at
+`<target_dir>/.1folder-journal.jsonl` (one JSON line per action, including the
+original and destination path). The journal is the history — plain text, no
+database — and powers undo:
+
+```sh
+onefolder --undo                # restore the last moved item
+onefolder --undo 10             # restore the last 10 items
+onefolder --undo all            # restore everything still reversible
+onefolder --undo all --within 30m     # only items moved in the last 30 minutes
+onefolder --undo all --src-prefix ~/Desktop/alter-desktop   # only items from there
+onefolder --undo all --dry-run  # preview what would be restored
+```
+
+Undo moves files and folders back to their original location, recreating the
+original folder structure. If something now occupies the original spot, the
+restored item is saved next to it as `name (2).ext` — nothing is ever
+overwritten. Restored items are marked in the journal and cannot be undone a
+second time. Items that were only detected as duplicates (`skip`) were never
+moved and are ignored.
+
+Note: quit the background agent before undoing (`launchctl unload`), otherwise
+restored files in watched folders may trigger the sorter again. With the
+default `dedupe.on_duplicate = "skip"` they would stay put, but other settings
+could create copies.
+
 ## Running as a background agent (LaunchAgent)
 
 Create `~/Library/LaunchAgents/de.korwisi.onefolder.plist`:

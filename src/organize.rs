@@ -465,7 +465,7 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
     Ok(())
 }
 
-fn move_raw(src: &Path, dst: &Path) -> Result<()> {
+pub(crate) fn move_raw(src: &Path, dst: &Path) -> Result<()> {
     match fs::rename(src, dst) {
         Ok(()) => Ok(()),
         Err(e)
