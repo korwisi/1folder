@@ -35,6 +35,19 @@ committed to a release; pick freely.
       not automatic detection of manual renames; see the "Renaming categories"
       section in the README for the manual procedure this would automate.
 
+## Notifications
+
+- [ ] Clickable notifications that reveal the moved file in Finder. The current
+      `osascript display notification` approach cannot handle clicks at all.
+      Plan: a small Swift helper (~60 lines, UNUserNotificationCenter +
+      delegate calling `NSWorkspace.shared.activateFileViewerSelecting`,
+      which opens Finder and selects the file), compiled at build time via
+      `build.rs` + `swiftc` on macOS and called like `osascript` is today.
+      No external user dependency (unlike shelling out to `terminal-notifier`).
+      Caveats: ad-hoc signing of the helper (ties into the code-signing /
+      notarization item below), and one short-lived helper process per
+      notification until it is dismissed or clicked.
+
 ## Builds and releases
 
 - [x] Release builds for Apple Silicon: added `build-universal.sh` script
