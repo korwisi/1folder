@@ -1,6 +1,8 @@
 # AGENTS.md
 
-Guidance for coding agents working on this repository.
+Guidance for coding agents working on this repository. See
+[AGENTS.RELEASE.md](AGENTS.RELEASE.md) for release automation context
+(GitHub Actions workflow, current status, open points).
 
 ## Project
 
