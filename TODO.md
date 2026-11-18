@@ -34,6 +34,9 @@ committed to a release; pick freely.
       action, and remind the user to restart the agent. An explicit command,
       not automatic detection of manual renames; see the "Renaming categories"
       section in the README for the manual procedure this would automate.
+- [ ] `--reorganize` (shipped): recursively re-classify files nested deeper than
+      one category level (currently skipped, mostly `preserve_source_paths =
+      "structure"`), and offer a category-rename mode that reuses it.
 
 ## Notifications
 

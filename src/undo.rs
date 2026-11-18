@@ -6,7 +6,13 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
-const UNDOABLE: &[&str] = &["moved", "moved_folder", "kept_both", "moved_to_duplicates"];
+const UNDOABLE: &[&str] = &[
+    "moved",
+    "moved_folder",
+    "kept_both",
+    "moved_to_duplicates",
+    "reclassified",
+];
 
 pub struct UndoSelection {
     pub all: bool,

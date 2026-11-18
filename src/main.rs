@@ -10,6 +10,7 @@ mod index;
 mod journal;
 mod notify;
 mod organize;
+mod reorganize;
 mod report;
 mod tags;
 mod undo;
@@ -26,6 +27,11 @@ struct Cli {
     config: Option<PathBuf>,
     #[arg(long, help = "Scan the watched folders once and exit")]
     once: bool,
+    #[arg(
+        long,
+        help = "Re-apply the current rules to files already in the target folder"
+    )]
+    reorganize: bool,
     #[arg(long, help = "Only show what would happen, change nothing")]
     dry_run: bool,
     #[arg(long, help = "Write the default configuration and exit")]
@@ -83,6 +89,10 @@ fn main() -> Result<()> {
 
     if let Some(undo_arg) = &cli.undo {
         return run_undo(&config, &cli, undo_arg);
+    }
+
+    if cli.reorganize {
+        return reorganize::run(&config, cli.dry_run, cli.report.as_deref());
     }
 
     if cli.once {

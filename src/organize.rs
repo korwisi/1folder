@@ -20,6 +20,7 @@ pub enum Action {
     DuplicateSkipped,
     KeptBoth,
     MovedToDuplicates,
+    Reclassified,
 }
 
 impl Action {
@@ -30,6 +31,7 @@ impl Action {
             Action::DuplicateSkipped => "duplicate_skipped",
             Action::KeptBoth => "kept_both",
             Action::MovedToDuplicates => "moved_to_duplicates",
+            Action::Reclassified => "reclassified",
         }
     }
 }
@@ -433,7 +435,7 @@ fn move_file(
     })
 }
 
-fn move_dir_raw(src: &Path, dst: &Path) -> Result<()> {
+pub(crate) fn move_dir_raw(src: &Path, dst: &Path) -> Result<()> {
     match fs::rename(src, dst) {
         Ok(()) => Ok(()),
         Err(e)

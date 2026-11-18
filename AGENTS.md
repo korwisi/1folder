@@ -34,6 +34,8 @@ There is no CI pipeline yet; run `cargo test` and `cargo clippy` before committi
 - `src/journal.rs` – JSONL action log in the target folder (the history that
   powers `--undo`)
 - `src/report.rs` – optional `--report <FILE>` JSONL operation log
+- `src/reorganize.rs` – `--reorganize` re-applies current rules to files already
+  in the target folder, journaling moves as `reclassified` (undoable)
 - `src/undo.rs` – `--undo [N|all]` with `--within`/`--src-prefix` filters;
   restores journal entries and marks them undone
 - `src/notify.rs` – macOS notifications via `osascript`, log-only elsewhere

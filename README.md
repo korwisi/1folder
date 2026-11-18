@@ -196,7 +196,9 @@ Loose files directly in a watched folder are sorted per file as before. Set
 ### Renaming categories
 
 The target folder is user-owned: 1folder never re-sorts, renames or "fixes"
-anything inside it, so you can restructure it freely at any time — even while
+anything inside it on its own — the only exception is the explicit
+`--reorganize` flag ([Reorganizing the target folder](#reorganizing-the-target-folder)).
+You can restructure it freely at any time — even while
 the agent is running. Renaming a category folder, however, does not update the
 config, so new files would keep going to the old name. To rename a category
 safely:
@@ -210,6 +212,34 @@ safely:
    search for the old tag (`tag:Bilder`), select everything and assign the new
    tag (removing the old one keeps Spotlight and Smart Folders consistent).
 5. Start the agent again.
+
+## Reorganizing the target folder
+
+Changing `rules`, `fallback_subdir` or elsewhere-referenced category names in the
+config only affects newly sorted files — everything already in the target folder
+keeps its place. To re-apply the current rules to it, run:
+
+```sh
+onefolder --reorganize --dry-run      # preview what would move
+onefolder --reorganize                # actually re-sort
+```
+
+`--reorganize` walks every category folder, re-classifies each file directly in
+it (including `pdf_keywords` rules) and each folder there as a unit, then moves
+anything whose category changed. Stray files in the target root are sorted too,
+name collisions get a ` (2)` suffix, emptied category folders are removed, and
+Finder tags are re-applied. The `Duplikate` folder is never touched, and nested
+paths deeper than one level inside a category (e.g. from
+`preserve_source_paths = "structure"`) are left alone.
+
+Every move is journaled as `reclassified`, so it behaves like any other move:
+
+```sh
+onefolder --undo all --dry-run
+onefolder --undo all                  # put everything back where it was
+```
+
+Quit the background agent before reorganizing, as with undo.
 
 ## Undo
 
