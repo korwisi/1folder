@@ -98,6 +98,12 @@ Priorities:
 Success means users can trust 1folder with real incoming files and can explain
 what it did.
 
+A concrete exit criterion for this phase: all reliability items in
+[TODO.md](TODO.md) are done, and the maintainer has used 1folder daily on real
+incoming files for a sustained period without data loss or unrecoverable
+states. Phase 2 (the native macOS interface) should not start before this
+bar is met.
+
 ### Phase 2 — A native macOS interface
 
 A standalone macOS application is a plausible next step because it could make

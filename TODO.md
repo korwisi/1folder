@@ -3,10 +3,16 @@
 Ideas and open items, roughly in the order they came up. Nothing here is
 committed to a release; pick freely.
 
+The reliability items below have priority: they implement Phase 1 ("A
+dependable daily tool") from [LONGTERM-GOALS.md](LONGTERM-GOALS.md) and should
+take precedence over everything further down.
+
 ## Reliability and correctness
 
 These items address failure modes identified during a review of the current
 implementation. They should take precedence over expanding the feature set.
+User-facing strings introduced by these items belong in the EN/DE message
+tables in `src/i18n.rs`.
 
 - [ ] Make dry-run strictly side-effect-free. A dry-run must not create or
       update the persistent hash index (or any other file, journal, tag, or
@@ -18,6 +24,12 @@ implementation. They should take precedence over expanding the feature set.
       `..`, or other paths escaping the target directory must be rejected.
       Cover `fallback_subdir`, `rules[].subdir`, `folders.subdir`, and
       `dedupe.duplicates_subdir`.
+- [ ] Do not index 1folder's own artifacts in the target folder. The persistent
+      index already skips `.1folder_index.json` and `.DS_Store`
+      (`src/index.rs`), but the journal `.1folder-journal.jsonl` written into
+      the target folder is still hashed into the index and can appear as a
+      duplicate candidate. Exclude the journal (and any future tool-owned
+      files) from `refresh()`.
 - [ ] Do not silently discard malformed journal records. Report invalid lines
       with line numbers, distinguish a truncated final record from corruption
       in the middle of the journal where possible, and prevent undo from
@@ -54,24 +66,28 @@ implementation. They should take precedence over expanding the feature set.
 
 ## Reliability test coverage
 
-- [ ] Add integration tests proving dry-run leaves the filesystem and
-      persistent state unchanged.
-- [ ] Test rejection of unsafe category/subdirectory values, including
-      absolute paths and traversal attempts.
-- [ ] Test malformed journal handling: invalid middle lines, a truncated final
+Each item references the corresponding reliability item above; implement the
+tests together with the fix rather than maintaining parallel descriptions.
+
+- [ ] Integration tests proving dry-run leaves the filesystem and persistent
+      state unchanged (see "Make dry-run strictly side-effect-free").
+- [ ] Rejection of unsafe category/subdirectory values, including absolute
+      paths and traversal attempts (see the validation item).
+- [ ] Malformed journal handling: invalid middle lines, a truncated final
       line, and undo behavior when the journal is incomplete.
-- [ ] Test unreadable or disappearing input directories and individual
+- [ ] Unreadable or disappearing input directories and individual
       directory-entry errors where they can be reproduced reliably.
-- [ ] Add integration tests for interrupted or failed cross-filesystem moves,
-      including failures during copy, final rename, and source removal.
-- [ ] Test hash-index invalidation when a file is replaced by another file of
-      the same size with a modification time that falls within the same second.
-- [ ] Test undo behavior when the filesystem restore succeeds but journal
-      writing fails, and verify that the state can be reconciled.
-- [ ] Add tests for concurrent changes to watched files, large files and
-      directories, stale or damaged indexes, destination collisions, symlinks,
-      and removable/external volumes where applicable.
-- [ ] Keep filesystem tests isolated in temporary directories; avoid assumptions
+- [ ] Interrupted or failed cross-filesystem moves, including failures during
+      copy, final rename, and source removal (see "Make cross-filesystem moves
+      failure-safe").
+- [ ] Hash-index invalidation when a file is replaced by another file of the
+      same size with a modification time that falls within the same second.
+- [ ] Undo behavior when the filesystem restore succeeds but journal writing
+      fails, and that the state can be reconciled.
+- [ ] Concurrent changes to watched files, large files and directories, stale
+      or damaged indexes, destination collisions, symlinks, and
+      removable/external volumes where applicable.
+- [ ] Filesystem tests stay isolated in temporary directories; avoid assumptions
       about the developer's real home directory or mounted volumes.
 
 ## Rules and classification
