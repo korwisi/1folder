@@ -8,6 +8,24 @@ committed to a release; pick freely.
 These items address failure modes identified during a review of the current
 implementation. They should take precedence over expanding the feature set.
 
+- [ ] Make dry-run strictly side-effect-free. A dry-run must not create or
+      update the persistent hash index (or any other file, journal, tag, or
+      notification state). Add an integration test that snapshots the target
+      and relevant state before and after dry-run, including when new files
+      would otherwise be indexed.
+- [ ] Validate all configured category and destination subdirectory names
+      before processing. Values such as absolute paths, path separators,
+      `..`, or other paths escaping the target directory must be rejected.
+      Cover `fallback_subdir`, `rules[].subdir`, `folders.subdir`, and
+      `dedupe.duplicates_subdir`.
+- [ ] Do not silently discard malformed journal records. Report invalid lines
+      with line numbers, distinguish a truncated final record from corruption
+      in the middle of the journal where possible, and prevent undo from
+      proceeding as though an incomplete history were complete.
+- [ ] Surface input-directory enumeration errors. Failures to open a watched
+      directory or read individual entries must be reported and reflected in
+      the command's result/exit status; do not silently treat an unreadable
+      directory as empty.
 - [ ] Make cross-filesystem moves failure-safe. When a rename cannot be performed
       atomically because source and destination are on different filesystems,
       copy to a temporary file in the destination directory, ensure the copy is
@@ -29,9 +47,21 @@ implementation. They should take precedence over expanding the feature set.
       destination collisions, permissions, full disks, disappearing volumes,
       source changes during processing, and failures while writing reports or
       journal entries must not result in silent data loss or misleading state.
+- [ ] Define a retry/recovery policy for transient watch-mode processing
+      failures. Currently, failed events can be removed from the pending set;
+      ensure files are not silently abandoned and make repeated failures
+      visible without creating an unbounded retry loop.
 
 ## Reliability test coverage
 
+- [ ] Add integration tests proving dry-run leaves the filesystem and
+      persistent state unchanged.
+- [ ] Test rejection of unsafe category/subdirectory values, including
+      absolute paths and traversal attempts.
+- [ ] Test malformed journal handling: invalid middle lines, a truncated final
+      line, and undo behavior when the journal is incomplete.
+- [ ] Test unreadable or disappearing input directories and individual
+      directory-entry errors where they can be reproduced reliably.
 - [ ] Add integration tests for interrupted or failed cross-filesystem moves,
       including failures during copy, final rename, and source removal.
 - [ ] Test hash-index invalidation when a file is replaced by another file of
@@ -67,6 +97,11 @@ implementation. They should take precedence over expanding the feature set.
       file metadata still matches, and hash new or changed files. Reconcile
       missing files and write updates atomically so manual changes and
       interruptions do not leave the index stale or corrupt.
+- [ ] Avoid a full recursive target-folder scan for every incoming file.
+      The persistent index currently avoids re-hashing unchanged files, but
+      repeated refresh scans can still make batches of incoming files
+      unnecessarily expensive. Measure this with large targets first, then
+      consider refreshing once per batch or using incremental updates.
 - [ ] onefolder rename-category <old> <new>: rename a category end-to-end —
       update every config reference (rules[].subdir, fallback_subdir,
       folders.subdir, dedupe.duplicates_subdir) in place while preserving
@@ -98,9 +133,11 @@ implementation. They should take precedence over expanding the feature set.
       to create universal binaries (lipo of both Intel and Apple Silicon
       arches) so one asset covers both Intel and Apple Silicon Macs. See README
       for setup.
-- [ ] Automate release artifacts with GitHub Actions: build on tag push
-      (macos-latest runner, universal binary via build-universal.sh), and attach
-      the result to the GitHub Release automatically.
+- [ ] Release automation with GitHub Actions: workflow and universal-build
+      script are prepared to build on tag push and attach the artifact to a
+      GitHub Release. **Not yet tested end to end**; verify the first real
+      release run, uploaded asset, archive contents, and download/install
+      instructions before treating this as complete.
 - [ ] Consider code signing / notarization so macOS Gatekeeper does not
       quarantine downloaded binaries (needs an Apple Developer ID).
 
