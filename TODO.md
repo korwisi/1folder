@@ -55,6 +55,10 @@ tables in `src/i18n.rs`.
       appending the undo record. Define and implement recoverable operation
       states so a successful restore followed by a journal-write failure is
       detectable and can be reconciled safely on the next run.
+- [ ] Make file moves recoverable when journal writes fail. A file may already
+      have been moved successfully when appending its journal entry fails.
+      Ensure such operations are detectable and recoverable, so files are never
+      left in an undocumented state that cannot be undone.
 - [ ] Review all filesystem mutations for interruption and error handling:
       destination collisions, permissions, full disks, disappearing volumes,
       source changes during processing, and failures while writing reports or
@@ -63,6 +67,10 @@ tables in `src/i18n.rs`.
       failures. Currently, failed events can be removed from the pending set;
       ensure files are not silently abandoned and make repeated failures
       visible without creating an unbounded retry loop.
+- [ ] Make file stability detection fail safely. If a file is still changing
+      when the configured stability timeout expires, do not process it as
+      stable. Keep it pending for a later retry and make the timeout visible
+      to the user.
 
 ## Reliability test coverage
 
@@ -70,7 +78,9 @@ Each item references the corresponding reliability item above; implement the
 tests together with the fix rather than maintaining parallel descriptions.
 
 - [ ] Integration tests proving dry-run leaves the filesystem and persistent
-      state unchanged (see "Make dry-run strictly side-effect-free").
+      state unchanged, including an end-to-end test of the actual CLI/run-once
+      workflow rather than only unit tests of `process_file()` (see
+      "Make dry-run strictly side-effect-free").
 - [ ] Rejection of unsafe category/subdirectory values, including absolute
       paths and traversal attempts (see the validation item).
 - [ ] Malformed journal handling: invalid middle lines, a truncated final
@@ -84,6 +94,10 @@ tests together with the fix rather than maintaining parallel descriptions.
       same size with a modification time that falls within the same second.
 - [ ] Undo behavior when the filesystem restore succeeds but journal writing
       fails, and that the state can be reconciled.
+- [ ] File-move behavior when the move succeeds but appending its journal entry
+      fails; verify that the operation remains detectable and recoverable.
+- [ ] Stability timeout while a watched file is still changing; verify it is
+      not processed prematurely and remains eligible for retry.
 - [ ] Concurrent changes to watched files, large files and directories, stale
       or damaged indexes, destination collisions, symlinks, and
       removable/external volumes where applicable.
