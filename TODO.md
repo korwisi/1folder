@@ -50,15 +50,30 @@ tables in `src/i18n.rs`.
       modification-time precision where available and consider additional file
       identity metadata so a same-size replacement within one second cannot
       incorrectly reuse a stale hash.
-- [ ] Make undo journal updates resilient to partial failure. In particular,
-      the restore operation currently performs the filesystem restore before
-      appending the undo record. Define and implement recoverable operation
-      states so a successful restore followed by a journal-write failure is
-      detectable and can be reconciled safely on the next run.
-- [ ] Make file moves recoverable when journal writes fail. A file may already
-      have been moved successfully when appending its journal entry fails.
-      Ensure such operations are detectable and recoverable, so files are never
-      left in an undocumented state that cannot be undone.
+- [ ] Make every filesystem mutation that depends on a journal write recoverable
+      from partial failure. Two concrete instances share one root cause — the
+      filesystem change happens first and the journal record only afterwards,
+      with no recoverable state in between:
+
+      - A move that succeeds but whose journal entry cannot be appended leaves
+        the file undocumented and not undoable.
+      - The undo restore currently performs the filesystem restore before
+        appending the undo record, so a journal-write failure after a successful
+        restore is likewise undetectable.
+
+      Define one recoverable operation-state model and apply it to both cases
+      (e.g. `pending → filesystem-done → journaled`), recorded before the
+      filesystem change, so the next run can detect the intermediate state and
+      reconcile it safely. Do not implement the two fixes independently.
+- [ ] Make file stability detection fail safely. Currently the result of
+      `wait_until_stable()` is ignored at both call sites (`src/organize.rs`
+      `process_file` and `process_folder`), and on timeout expiry the function
+      reports a continuously changing file as processable as long as it still
+      exists. Instead: never process a file that has not stabilized; keep it for
+      a later attempt and make the timeout visible to the user. This needs a
+      decision per mode — the watch-mode pending map can retry, but `--once` has
+      no retry mechanism, so there the file must stay in place and the run must
+      surface a visible error/exit status instead of skipping silently.
 - [ ] Review all filesystem mutations for interruption and error handling:
       destination collisions, permissions, full disks, disappearing volumes,
       source changes during processing, and failures while writing reports or
@@ -93,11 +108,13 @@ tests together with the fix rather than maintaining parallel descriptions.
 - [ ] Hash-index invalidation when a file is replaced by another file of the
       same size with a modification time that falls within the same second.
 - [ ] Undo behavior when the filesystem restore succeeds but journal writing
-      fails, and that the state can be reconciled.
-- [ ] File-move behavior when the move succeeds but appending its journal entry
-      fails; verify that the operation remains detectable and recoverable.
+      fails, and that the state can be reconciled (part of the shared
+      recovery-state model above; cover both the move and the undo direction).
+- [ ] A move whose journal entry cannot be appended; verify the operation remains
+      detectable and recoverable per the recovery-state model above.
 - [ ] Stability timeout while a watched file is still changing; verify it is
-      not processed prematurely and remains eligible for retry.
+      not processed prematurely, stays in place in `--once` mode with a visible
+      error/exit status, and remains eligible for retry in watch mode.
 - [ ] Concurrent changes to watched files, large files and directories, stale
       or damaged indexes, destination collisions, symlinks, and
       removable/external volumes where applicable.
