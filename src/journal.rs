@@ -5,6 +5,39 @@ use sha2::{Digest, Sha256};
 use std::io::Write;
 use std::path::Path;
 
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TestJournalFault {
+    Append,
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static TEST_JOURNAL_FAULT: std::cell::Cell<Option<TestJournalFault>> =
+        const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn set_test_fault(fault: TestJournalFault) {
+    TEST_JOURNAL_FAULT.with(|state| state.set(Some(fault)));
+}
+
+#[cfg(test)]
+fn fail_test_fault() -> Result<()> {
+    let should_fail =
+        TEST_JOURNAL_FAULT.with(|state| state.get() == Some(TestJournalFault::Append));
+    if should_fail {
+        TEST_JOURNAL_FAULT.with(|state| state.set(None));
+        anyhow::bail!("Injected journal append failure");
+    }
+    Ok(())
+}
+
+#[cfg(not(test))]
+fn fail_test_fault() -> Result<()> {
+    Ok(())
+}
+
 #[derive(Debug)]
 pub enum JournalReadError {
     Unreadable(std::io::Error),
@@ -63,6 +96,7 @@ fn entry_id(parts: &[&str]) -> String {
 }
 
 fn write_entry(journal_path: &Path, entry: &JournalEntry) -> Result<()> {
+    fail_test_fault()?;
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)

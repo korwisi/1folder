@@ -15,6 +15,43 @@ use std::time::{Duration, Instant};
 const PARTIAL_DOWNLOAD_EXTS: &[&str] = &["crdownload", "part", "partial", "download", "tmp"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TestFault {
+    Copy,
+    Rename,
+    RemoveSource,
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static TEST_FAULT: std::cell::Cell<Option<TestFault>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn set_test_fault(fault: TestFault) {
+    TEST_FAULT.with(|state| state.set(Some(fault)));
+}
+
+#[cfg(test)]
+pub(crate) fn clear_test_fault() {
+    TEST_FAULT.with(|state| state.set(None));
+}
+
+#[cfg(test)]
+fn fail_test_fault(fault: TestFault) -> Result<()> {
+    let should_fail = TEST_FAULT.with(|state| state.get() == Some(fault));
+    if should_fail {
+        clear_test_fault();
+        anyhow::bail!("Injected test fault: {:?}", fault);
+    }
+    Ok(())
+}
+
+#[cfg(not(test))]
+fn fail_test_fault(_fault: TestFault) -> Result<()> {
+    Ok(())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
     Moved,
     MovedFolder,
@@ -481,7 +518,9 @@ fn move_dir_cross_filesystem(src: &Path, dst: &Path) -> Result<()> {
     let result = (|| {
         copy_dir_recursive(src, &temp)?;
         verify_dir_copy(src, &temp)?;
+        fail_test_fault(TestFault::Rename)?;
         fs::rename(&temp, dst)?;
+        fail_test_fault(TestFault::RemoveSource)?;
         fs::remove_dir_all(src)?;
         Ok(())
     })();
@@ -504,6 +543,7 @@ fn copy_entry(src: &Path, dst: &Path) -> Result<()> {
     if src.is_dir() {
         copy_dir_recursive(src, dst)
     } else {
+        fail_test_fault(TestFault::Copy)?;
         fs::copy(src, dst)?;
         verify_file_copy(src, dst)
     }
@@ -552,9 +592,12 @@ fn move_file_cross_filesystem(src: &Path, dst: &Path) -> Result<()> {
         ),
     );
     let result = (|| {
+        fail_test_fault(TestFault::Copy)?;
         fs::copy(src, &temp)?;
         verify_file_copy(src, &temp)?;
+        fail_test_fault(TestFault::Rename)?;
         fs::rename(&temp, dst)?;
+        fail_test_fault(TestFault::RemoveSource)?;
         fs::remove_file(src)?;
         Ok(())
     })();
@@ -780,6 +823,66 @@ mod tests {
         assert!(!wait_until_stable(&path, Duration::from_millis(150)));
         writer.join().unwrap();
         assert!(path.exists());
+    }
+
+    #[test]
+    fn cross_filesystem_copy_failure_preserves_source_and_cleans_temp() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = tmp.path().join("source.bin");
+        let dst = tmp.path().join("destination.bin");
+        fs::write(&src, b"payload").unwrap();
+        set_test_fault(TestFault::Copy);
+
+        let error = move_file_cross_filesystem(&src, &dst).unwrap_err();
+
+        assert!(error.to_string().contains("Injected test fault"));
+        assert!(src.exists());
+        assert!(!dst.exists());
+        assert!(fs::read_dir(tmp.path())
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .all(|entry| !entry
+                .file_name()
+                .to_string_lossy()
+                .contains(".1folder-copy")));
+    }
+
+    #[test]
+    fn cross_filesystem_rename_failure_preserves_source_and_cleans_temp() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = tmp.path().join("source.bin");
+        let dst = tmp.path().join("destination.bin");
+        fs::write(&src, b"payload").unwrap();
+        set_test_fault(TestFault::Rename);
+
+        let error = move_file_cross_filesystem(&src, &dst).unwrap_err();
+
+        assert!(error.to_string().contains("Injected test fault"));
+        assert!(src.exists());
+        assert!(!dst.exists());
+        assert!(fs::read_dir(tmp.path())
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .all(|entry| !entry
+                .file_name()
+                .to_string_lossy()
+                .contains(".1folder-copy")));
+    }
+
+    #[test]
+    fn cross_filesystem_source_removal_failure_keeps_copy() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = tmp.path().join("source.bin");
+        let dst = tmp.path().join("destination.bin");
+        fs::write(&src, b"payload").unwrap();
+        set_test_fault(TestFault::RemoveSource);
+
+        let error = move_file_cross_filesystem(&src, &dst).unwrap_err();
+
+        assert!(error.to_string().contains("Injected test fault"));
+        assert!(src.exists());
+        assert!(dst.exists());
+        assert_eq!(fs::read(&dst).unwrap(), b"payload");
     }
 
     #[test]
