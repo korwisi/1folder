@@ -87,6 +87,10 @@ impl PersistentIndex {
                 // Skip 1folder's own state and system files
                 if file_name != std::ffi::OsStr::new(".1folder_index.json")
                     && file_name != std::ffi::OsStr::new(".1folder-journal.jsonl")
+                    && file_name != std::ffi::OsStr::new(".1folder-operation.json")
+                    && !file_name
+                        .to_string_lossy()
+                        .starts_with(".1folder-operation")
                     && file_name != std::ffi::OsStr::new(".DS_Store")
                 {
                     entries.push(path);

@@ -2,11 +2,10 @@ use crate::classify;
 use crate::config::{Config, FolderMode};
 use crate::hash::sha256_file;
 use crate::i18n::Messages;
+#[cfg(test)]
 use crate::journal;
 use crate::notify;
-use crate::organize::{
-    free_destination, is_partial_download, move_dir_raw, move_raw, Action, HashIndex, Outcome,
-};
+use crate::organize::{free_destination, is_partial_download, Action, HashIndex, Outcome};
 use crate::report;
 use crate::tags;
 use anyhow::{Context, Result};
@@ -153,16 +152,8 @@ fn reclassify_file(
     let m = Messages::get(config.general.language);
     fs::create_dir_all(&dest_dir)
         .with_context(|| crate::i18n::fmt(m.dir_not_creatable, &[&dest_dir.display()]))?;
-    move_raw(path, &dst)
+    crate::operation::move_file(config, Action::Reclassified, path, &dst, &category, &sha256)
         .with_context(|| crate::i18n::fmt(m.move_failed, &[&path.display(), &dst.display()]))?;
-    journal::append(
-        &config.journal_path(),
-        Action::Reclassified.as_str(),
-        path,
-        &dst,
-        &category,
-        &sha256,
-    )?;
     apply_tag(config, &dst, &category);
     index.insert(&sha256, &dst);
     Ok(Some(outcome))
@@ -196,17 +187,10 @@ fn reclassify_folder(config: &Config, dry_run: bool, item: &Item) -> Result<Opti
     let m = Messages::get(config.general.language);
     fs::create_dir_all(&dest_dir)
         .with_context(|| crate::i18n::fmt(m.dir_not_creatable, &[&dest_dir.display()]))?;
-    move_dir_raw(&item.path, &dst).with_context(|| {
-        crate::i18n::fmt(m.move_failed, &[&item.path.display(), &dst.display()])
-    })?;
-    journal::append(
-        &config.journal_path(),
-        Action::Reclassified.as_str(),
-        &item.path,
-        &dst,
-        &category,
-        "",
-    )?;
+    crate::operation::move_folder(config, Action::Reclassified, &item.path, &dst, &category)
+        .with_context(|| {
+            crate::i18n::fmt(m.move_failed, &[&item.path.display(), &dst.display()])
+        })?;
     apply_tag(config, &dst, &category);
     Ok(Some(outcome))
 }

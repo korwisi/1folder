@@ -123,13 +123,12 @@ fn restore(config: &Config, dry_run: bool, record: &JournalRecord) -> Result<boo
     } else {
         src.clone()
     };
-    crate::organize::move_raw(&dst, &target)
+    crate::operation::undo(config, record.id.as_deref(), &dst, &target)
         .with_context(|| crate::i18n::fmt(m.move_failed, &[&dst.display(), &target.display()]))?;
     log::info!(
         "{}",
         crate::i18n::fmt(m.undo_restored, &[&dst.display(), &target.display()])
     );
-    journal::append_undo(&config.journal_path(), record.id.as_deref(), &dst, &target)?;
     Ok(true)
 }
 

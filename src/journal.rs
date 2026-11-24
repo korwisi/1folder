@@ -31,7 +31,7 @@ impl std::error::Error for JournalReadError {}
 #[derive(Serialize)]
 struct JournalEntry {
     ts: String,
-    action: &'static str,
+    action: String,
     src: String,
     dst: String,
     category: String,
@@ -75,7 +75,7 @@ fn write_entry(journal_path: &Path, entry: &JournalEntry) -> Result<()> {
 
 pub fn append(
     journal_path: &Path,
-    action: &'static str,
+    action: &str,
     src: &Path,
     dst: &Path,
     category: &str,
@@ -89,7 +89,7 @@ pub fn append(
         journal_path,
         &JournalEntry {
             ts,
-            action,
+            action: action.to_string(),
             src: src_str,
             dst: dst_str,
             category: category.to_string(),
@@ -114,7 +114,7 @@ pub fn append_undo(
         journal_path,
         &JournalEntry {
             ts,
-            action: "undone",
+            action: "undone".to_string(),
             src: from_str,
             dst: to_str,
             category: String::new(),

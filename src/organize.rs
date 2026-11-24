@@ -5,6 +5,7 @@ use crate::i18n::Messages;
 use crate::index::PersistentIndex;
 use crate::journal;
 use crate::notify;
+use crate::operation;
 use crate::tags;
 use anyhow::{Context, Result};
 use std::fs;
@@ -229,7 +230,7 @@ pub fn process_folder(config: &Config, dry_run: bool, dir: &Path) -> Result<Opti
     }
     fs::create_dir_all(&dest_dir)
         .with_context(|| crate::i18n::fmt(m.dir_not_creatable, &[&dest_dir.display()]))?;
-    move_dir_raw(dir, &dst)
+    operation::move_folder(config, Action::MovedFolder, dir, &dst, &category)
         .with_context(|| crate::i18n::fmt(m.move_failed, &[&dir.display(), &dst.display()]))?;
     log::info!("{} → {}", dir.display(), dst.display());
     notify::maybe_notify(
@@ -243,14 +244,6 @@ pub fn process_folder(config: &Config, dry_run: bool, dir: &Path) -> Result<Opti
             dst.display()
         ),
     );
-    journal::append(
-        &config.journal_path(),
-        Action::MovedFolder.as_str(),
-        dir,
-        &dst,
-        &category,
-        "",
-    )?;
     let rule_color = config
         .rules
         .iter()
@@ -426,7 +419,7 @@ fn move_file(
         fs::create_dir_all(parent)
             .with_context(|| crate::i18n::fmt(m.dir_not_creatable, &[&parent.display()]))?;
     }
-    move_raw(src, dst)
+    operation::move_file(config, action, src, dst, category, sha256)
         .with_context(|| crate::i18n::fmt(m.move_failed, &[&src.display(), &dst.display()]))?;
     log::info!("{} → {}", src.display(), dst.display());
     notify::maybe_notify(
@@ -440,14 +433,6 @@ fn move_file(
             dst.display()
         ),
     );
-    journal::append(
-        &config.journal_path(),
-        action.as_str(),
-        src,
-        dst,
-        category,
-        sha256,
-    )?;
     let rule_color = config
         .rules
         .iter()
@@ -477,27 +462,71 @@ pub(crate) fn move_dir_raw(src: &Path, dst: &Path) -> Result<()> {
         Err(e)
             if e.kind() == std::io::ErrorKind::CrossesDevices || e.raw_os_error() == Some(18) =>
         {
-            copy_dir_recursive(src, dst)?;
-            fs::remove_dir_all(src)?;
-            Ok(())
+            move_dir_cross_filesystem(src, dst)
         }
         Err(e) => Err(e.into()),
     }
+}
+
+fn move_dir_cross_filesystem(src: &Path, dst: &Path) -> Result<()> {
+    let parent = dst.parent().unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent)?;
+    let temp = unique_temp_path(
+        parent,
+        &format!(
+            ".{}.1folder-copy",
+            dst.file_name().unwrap_or_default().to_string_lossy()
+        ),
+    );
+    let result = (|| {
+        copy_dir_recursive(src, &temp)?;
+        verify_dir_copy(src, &temp)?;
+        fs::rename(&temp, dst)?;
+        fs::remove_dir_all(src)?;
+        Ok(())
+    })();
+    if result.is_err() && temp.exists() {
+        let _ = fs::remove_dir_all(&temp);
+    }
+    result
 }
 
 fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
     fs::create_dir_all(dst)?;
     for entry in fs::read_dir(src)? {
         let entry = entry?;
-        let from = entry.path();
-        let to = dst.join(entry.file_name());
-        if from.is_dir() {
-            copy_dir_recursive(&from, &to)?;
+        copy_entry(&entry.path(), &dst.join(entry.file_name()))?;
+    }
+    Ok(())
+}
+
+fn copy_entry(src: &Path, dst: &Path) -> Result<()> {
+    if src.is_dir() {
+        copy_dir_recursive(src, dst)
+    } else {
+        fs::copy(src, dst)?;
+        verify_file_copy(src, dst)
+    }
+}
+
+fn verify_dir_copy(src: &Path, dst: &Path) -> Result<()> {
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let copied = dst.join(entry.file_name());
+        if entry.path().is_dir() {
+            verify_dir_copy(&entry.path(), &copied)?;
         } else {
-            fs::copy(&from, &to)?;
+            verify_file_copy(&entry.path(), &copied)?;
         }
     }
     Ok(())
+}
+
+fn unique_temp_path(parent: &Path, prefix: &str) -> PathBuf {
+    let nonce = chrono::Local::now()
+        .timestamp_nanos_opt()
+        .unwrap_or_default();
+    parent.join(format!("{prefix}-{}-{}", std::process::id(), nonce))
 }
 
 pub(crate) fn move_raw(src: &Path, dst: &Path) -> Result<()> {
@@ -506,11 +535,68 @@ pub(crate) fn move_raw(src: &Path, dst: &Path) -> Result<()> {
         Err(e)
             if e.kind() == std::io::ErrorKind::CrossesDevices || e.raw_os_error() == Some(18) =>
         {
-            fs::copy(src, dst)?;
-            fs::remove_file(src)?;
-            Ok(())
+            move_file_cross_filesystem(src, dst)
         }
         Err(e) => Err(e.into()),
+    }
+}
+
+fn move_file_cross_filesystem(src: &Path, dst: &Path) -> Result<()> {
+    let parent = dst.parent().unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent)?;
+    let temp = unique_temp_path(
+        parent,
+        &format!(
+            ".{}.1folder-copy",
+            dst.file_name().unwrap_or_default().to_string_lossy()
+        ),
+    );
+    let result = (|| {
+        fs::copy(src, &temp)?;
+        verify_file_copy(src, &temp)?;
+        fs::rename(&temp, dst)?;
+        fs::remove_file(src)?;
+        Ok(())
+    })();
+    if result.is_err() && temp.exists() {
+        let _ = fs::remove_file(&temp);
+    }
+    result
+}
+
+fn verify_file_copy(src: &Path, dst: &Path) -> Result<()> {
+    let src_meta = fs::metadata(src)?;
+    let dst_meta = fs::metadata(dst)?;
+    if src_meta.len() != dst_meta.len() {
+        anyhow::bail!(
+            "Copied file size mismatch: {} ({}) != {} ({})",
+            src.display(),
+            src_meta.len(),
+            dst.display(),
+            dst_meta.len()
+        );
+    }
+    if crate::hash::sha256_file(src)? != crate::hash::sha256_file(dst)? {
+        anyhow::bail!(
+            "Copied file hash mismatch: {} != {}",
+            src.display(),
+            dst.display()
+        );
+    }
+    Ok(())
+}
+
+pub(crate) fn verify_move_pair(src: &Path, dst: &Path) -> Result<()> {
+    if src.is_dir() && dst.is_dir() {
+        verify_dir_copy(src, dst)
+    } else if src.is_file() && dst.is_file() {
+        verify_file_copy(src, dst)
+    } else {
+        anyhow::bail!(
+            "Recovered move paths have incompatible types: {} and {}",
+            src.display(),
+            dst.display()
+        )
     }
 }
 

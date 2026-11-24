@@ -38,7 +38,7 @@ tables in `src/i18n.rs`.
       directory or read individual entries must be reported and reflected in
       the command's result/exit status; do not silently treat an unreadable
       directory as empty.
-- [ ] Make cross-filesystem moves failure-safe. When a rename cannot be performed
+- [x] Make cross-filesystem moves failure-safe. When a rename cannot be performed
       atomically because source and destination are on different filesystems,
       copy to a temporary file in the destination directory, ensure the copy is
       complete (and preferably verify its size/hash), rename the temporary file
@@ -50,7 +50,7 @@ tables in `src/i18n.rs`.
       modification-time precision where available and consider additional file
       identity metadata so a same-size replacement within one second cannot
       incorrectly reuse a stale hash.
-- [ ] Make every filesystem mutation that depends on a journal write recoverable
+- [x] Make every filesystem mutation that depends on a journal write recoverable
       from partial failure. Two concrete instances share one root cause — the
       filesystem change happens first and the journal record only afterwards,
       with no recoverable state in between:
@@ -102,15 +102,15 @@ tests together with the fix rather than maintaining parallel descriptions.
       line, and undo behavior when the journal is incomplete.
 - [ ] Unreadable or disappearing input directories and individual
       directory-entry errors where they can be reproduced reliably.
-- [ ] Interrupted or failed cross-filesystem moves, including failures during
+- [x] Interrupted or failed cross-filesystem moves, including failures during
       copy, final rename, and source removal (see "Make cross-filesystem moves
       failure-safe").
 - [ ] Hash-index invalidation when a file is replaced by another file of the
       same size with a modification time that falls within the same second.
-- [ ] Undo behavior when the filesystem restore succeeds but journal writing
+- [x] Undo behavior when the filesystem restore succeeds but journal writing
       fails, and that the state can be reconciled (part of the shared
       recovery-state model above; cover both the move and the undo direction).
-- [ ] A move whose journal entry cannot be appended; verify the operation remains
+- [x] A move whose journal entry cannot be appended; verify the operation remains
       detectable and recoverable per the recovery-state model above.
 - [ ] Stability timeout while a watched file is still changing; verify it is
       not processed prematurely, stays in place in `--once` mode with a visible

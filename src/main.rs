@@ -9,6 +9,7 @@ mod i18n;
 mod index;
 mod journal;
 mod notify;
+mod operation;
 mod organize;
 mod reorganize;
 mod report;
@@ -86,6 +87,9 @@ fn main() -> Result<()> {
     }
     let config = config::Config::load(&config_path)?;
     log::debug!("Config loaded from {}", config_path.display());
+    if !cli.dry_run {
+        operation::reconcile(&config)?;
+    }
 
     if let Some(undo_arg) = &cli.undo {
         return run_undo(&config, &cli, undo_arg);
