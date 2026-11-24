@@ -180,7 +180,7 @@ tests together with the fix rather than maintaining parallel descriptions.
       to create universal binaries (lipo of both Intel and Apple Silicon
       arches) so one asset covers both Intel and Apple Silicon Macs. See README
       for setup.
-- [ ] Release automation with GitHub Actions: workflow and universal-build
+- [x] Release automation with GitHub Actions: workflow and universal-build
       script are prepared to build on tag push and attach the artifact to a
       GitHub Release. **Not yet tested end to end**; verify the first real
       release run, uploaded asset, archive contents, and download/install
