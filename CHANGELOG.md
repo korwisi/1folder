@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-24
+
+### Added
+- Pending-operation recovery state for moves and undo operations, so interrupted
+  filesystem and journal work can be reconciled safely on the next run.
+- Fault-injection unit coverage for cross-filesystem copy, rename, source removal,
+  and journal append failures.
+
+### Fixed
+- Cross-filesystem file and directory moves now copy to a temporary destination,
+  verify the copy, publish it with a rename, and only then remove the source.
+- Dry-run, category subdirectory validation, tool-owned index files, stability
+  timeout handling, watched-directory enumeration, and malformed journal handling
+  are now enforced consistently across CLI and watch workflows.
+
 ## [0.4.1] - 2026-11-16
 
 ### Added
