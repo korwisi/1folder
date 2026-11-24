@@ -308,6 +308,19 @@ Then load it:
 launchctl load ~/Library/LaunchAgents/de.korwisi.onefolder.plist
 ```
 
+After installing a new release binary, restart the LaunchAgent so the running
+process uses the new version:
+
+```sh
+sudo install -m 0755 onefolder /usr/local/bin/onefolder
+launchctl kickstart -k gui/$(id -u)/de.korwisi.onefolder
+/usr/local/bin/onefolder --version
+```
+
+In the example above, `onefolder` refers to the downloaded or extracted binary.
+Run `launchctl list de.korwisi.onefolder` to confirm that the agent is loaded and
+running.
+
 ## macOS permissions (TCC)
 
 Access to *Downloads*, *Desktop* and *Documents* is protected by macOS privacy

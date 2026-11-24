@@ -54,6 +54,16 @@ Handoff notes for the release automation work (continuation context; see
 - Installed executable reports `1folder 0.5.0`.
 - LaunchAgent `de.korwisi.onefolder` was restarted after installation.
 
+## Post-install release update
+
+- Replace the executable with
+  `sudo install -m 0755 onefolder /usr/local/bin/onefolder`.
+- Restart the existing LaunchAgent with
+  `launchctl kickstart -k gui/$(id -u)/de.korwisi.onefolder`.
+- Verify the binary with `/usr/local/bin/onefolder --version`.
+- Verify agent status with `launchctl list de.korwisi.onefolder`.
+- Keep these commands in sync with the LaunchAgent section in `README.md`.
+
 ## Why this file exists
 
 This file carries the context across machines and records the verified release
