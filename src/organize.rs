@@ -65,8 +65,7 @@ impl HashIndex {
         Self {
             persistent: PersistentIndex::load_or_create(Path::new(".")).unwrap_or_else(|_| {
                 log::warn!("Failed to load persistent index, starting with fresh cache");
-                PersistentIndex::load_or_create(Path::new("."))
-                    .expect("Failed to create index")
+                PersistentIndex::load_or_create(Path::new(".")).expect("Failed to create index")
             }),
         }
     }
@@ -151,7 +150,13 @@ pub fn process_file(
     if !should_process(config, path) {
         return Ok(None);
     }
-    wait_until_stable(path, Duration::from_millis(config.watch.stability_wait_ms));
+    if !wait_until_stable(path, Duration::from_millis(config.watch.stability_wait_ms)) {
+        let m = Messages::get(config.general.language);
+        anyhow::bail!(
+            "{}",
+            crate::i18n::fmt(m.stability_timeout, &[&path.display()])
+        );
+    }
 
     let sha256 = sha256_file(path)?;
     let needs_pdf_text = config.rules.iter().any(|r| !r.pdf_keywords.is_empty());
@@ -166,7 +171,9 @@ pub fn process_file(
 
     index.refresh(&config.target_dir);
     let mut outcome = if let Some(existing) = index.lookup(&sha256).map(|p| p.to_path_buf()) {
-        handle_duplicate(config, dry_run, path, &existing, &dest_dir, &file_name, &category, &sha256, index)?
+        handle_duplicate(
+            config, dry_run, path, &existing, &dest_dir, &file_name, &category, &sha256, index,
+        )?
     } else {
         let existing = dest_dir.join(&file_name);
         let dst = if existing.exists() {
@@ -174,7 +181,16 @@ pub fn process_file(
         } else {
             existing.clone()
         };
-        move_file(config, dry_run, path, &dst, Action::Moved, &category, &sha256, index)?
+        move_file(
+            config,
+            dry_run,
+            path,
+            &dst,
+            Action::Moved,
+            &category,
+            &sha256,
+            index,
+        )?
     };
     outcome.rule = rule_name;
     Ok(Some(outcome))
@@ -184,7 +200,13 @@ pub fn process_folder(config: &Config, dry_run: bool, dir: &Path) -> Result<Opti
     if !folder_should_process(config, dir) {
         return Ok(None);
     }
-    wait_until_stable(dir, Duration::from_millis(config.watch.stability_wait_ms));
+    if !wait_until_stable(dir, Duration::from_millis(config.watch.stability_wait_ms)) {
+        let m = Messages::get(config.general.language);
+        anyhow::bail!(
+            "{}",
+            crate::i18n::fmt(m.stability_timeout, &[&dir.display()])
+        );
+    }
     if !dir.is_dir() {
         return Ok(None);
     }
@@ -207,16 +229,17 @@ pub fn process_folder(config: &Config, dry_run: bool, dir: &Path) -> Result<Opti
     }
     fs::create_dir_all(&dest_dir)
         .with_context(|| crate::i18n::fmt(m.dir_not_creatable, &[&dest_dir.display()]))?;
-    move_dir_raw(dir, &dst).with_context(|| {
-        crate::i18n::fmt(m.move_failed, &[&dir.display(), &dst.display()])
-    })?;
+    move_dir_raw(dir, &dst)
+        .with_context(|| crate::i18n::fmt(m.move_failed, &[&dir.display(), &dst.display()]))?;
     log::info!("{} → {}", dir.display(), dst.display());
     notify::maybe_notify(
         &config.notify,
         m.folder_sorted_title,
         &format!(
             "{} → {}",
-            dir.file_name().map(|n| n.to_string_lossy()).unwrap_or_default(),
+            dir.file_name()
+                .map(|n| n.to_string_lossy())
+                .unwrap_or_default(),
             dst.display()
         ),
     );
@@ -251,10 +274,7 @@ pub fn process_folder(config: &Config, dry_run: bool, dir: &Path) -> Result<Opti
 }
 
 fn destination_naming(config: &Config, path: &Path) -> (PathBuf, PathBuf) {
-    let file_name: PathBuf = path
-        .file_name()
-        .map(PathBuf::from)
-        .unwrap_or_default();
+    let file_name: PathBuf = path.file_name().map(PathBuf::from).unwrap_or_default();
     match config.general.preserve_source_paths {
         PreserveMode::Off => (PathBuf::new(), file_name),
         PreserveMode::Structure => {
@@ -351,7 +371,16 @@ fn handle_duplicate(
         }
         DuplicateAction::KeepBoth => {
             let dst = free_destination(dest_dir, file_name);
-            move_file(config, dry_run, src, &dst, Action::KeptBoth, category, sha256, index)
+            move_file(
+                config,
+                dry_run,
+                src,
+                &dst,
+                Action::KeptBoth,
+                category,
+                sha256,
+                index,
+            )
         }
         DuplicateAction::MoveToDuplicates => {
             let dup_dir = config.target_dir.join(&config.dedupe.duplicates_subdir);
@@ -394,24 +423,31 @@ fn move_file(
     }
     let m = Messages::get(config.general.language);
     if let Some(parent) = dst.parent() {
-        fs::create_dir_all(parent).with_context(|| {
-            crate::i18n::fmt(m.dir_not_creatable, &[&parent.display()])
-        })?;
+        fs::create_dir_all(parent)
+            .with_context(|| crate::i18n::fmt(m.dir_not_creatable, &[&parent.display()]))?;
     }
-    move_raw(src, dst).with_context(|| {
-        crate::i18n::fmt(m.move_failed, &[&src.display(), &dst.display()])
-    })?;
+    move_raw(src, dst)
+        .with_context(|| crate::i18n::fmt(m.move_failed, &[&src.display(), &dst.display()]))?;
     log::info!("{} → {}", src.display(), dst.display());
     notify::maybe_notify(
         &config.notify,
         m.file_sorted_title,
         &format!(
             "{} → {}",
-            src.file_name().map(|n| n.to_string_lossy()).unwrap_or_default(),
+            src.file_name()
+                .map(|n| n.to_string_lossy())
+                .unwrap_or_default(),
             dst.display()
         ),
     );
-    journal::append(&config.journal_path(), action.as_str(), src, dst, category, sha256)?;
+    journal::append(
+        &config.journal_path(),
+        action.as_str(),
+        src,
+        dst,
+        category,
+        sha256,
+    )?;
     let rule_color = config
         .rules
         .iter()
@@ -497,31 +533,29 @@ pub fn free_destination(dest_dir: &Path, file_name: &Path) -> PathBuf {
             return candidate;
         }
     }
-    dest_dir.join(format!("{stem} (collision-{:x}){ext}", chrono::Local::now().timestamp_millis()))
+    dest_dir.join(format!(
+        "{stem} (collision-{:x}){ext}",
+        chrono::Local::now().timestamp_millis()
+    ))
 }
 
 fn wait_until_stable(path: &Path, max_wait: Duration) -> bool {
     let Ok(meta) = fs::metadata(path) else {
         return false;
     };
-    if let Ok(modified) = meta.modified() {
-        if let Ok(age) = modified.elapsed() {
-            if age > Duration::from_secs(60) {
-                return true;
-            }
-        }
-    }
     let deadline = Instant::now() + max_wait;
     let mut last = Some((meta.len(), meta.modified().ok()));
     loop {
         std::thread::sleep(Duration::from_millis(250));
-        let current = fs::metadata(path).ok().map(|m| (m.len(), m.modified().ok()));
+        let current = fs::metadata(path)
+            .ok()
+            .map(|m| (m.len(), m.modified().ok()));
         if current.is_some() && current == last {
             return true;
         }
         last = current;
         if Instant::now() >= deadline {
-            return current.is_some();
+            return false;
         }
     }
 }
@@ -569,10 +603,15 @@ mod tests {
         let mut index = HashIndex::new();
 
         assert_eq!(
-            process_file(&config, false, &src1, &mut index).unwrap().unwrap().action,
+            process_file(&config, false, &src1, &mut index)
+                .unwrap()
+                .unwrap()
+                .action,
             Action::Moved
         );
-        let second = process_file(&config, false, &src2, &mut index).unwrap().unwrap();
+        let second = process_file(&config, false, &src2, &mut index)
+            .unwrap()
+            .unwrap();
         assert_eq!(second.action, Action::DuplicateSkipped);
         assert_eq!(second.dst, target.join("Bilder/a.jpg"));
         assert!(src2.exists(), "Quelle soll bei skip liegen bleiben");
@@ -594,7 +633,9 @@ mod tests {
         let mut index = HashIndex::new();
 
         process_file(&config, false, &src1, &mut index).unwrap();
-        let outcome = process_file(&config, false, &src2, &mut index).unwrap().unwrap();
+        let outcome = process_file(&config, false, &src2, &mut index)
+            .unwrap()
+            .unwrap();
         assert_eq!(outcome.action, Action::Moved);
         assert!(target.join("Dokumente/report (2).pdf").exists());
     }
@@ -612,7 +653,9 @@ mod tests {
         let mut index = HashIndex::new();
 
         process_file(&config, false, &src1, &mut index).unwrap();
-        let outcome = process_file(&config, false, &src2, &mut index).unwrap().unwrap();
+        let outcome = process_file(&config, false, &src2, &mut index)
+            .unwrap()
+            .unwrap();
         assert_eq!(outcome.action, Action::KeptBoth);
         assert!(target.join("Bilder/b.jpg").exists());
     }
@@ -632,6 +675,25 @@ mod tests {
         assert!(src.exists());
         assert!(!target.exists());
         assert!(!config.journal_path().exists());
+    }
+
+    #[test]
+    fn stability_timeout_rejects_changing_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("changing.bin");
+        fs::write(&path, b"a").unwrap();
+
+        let path_for_thread = path.clone();
+        let writer = std::thread::spawn(move || {
+            for byte in b"bcdefghij" {
+                fs::write(&path_for_thread, [*byte]).unwrap();
+                std::thread::sleep(Duration::from_millis(20));
+            }
+        });
+
+        assert!(!wait_until_stable(&path, Duration::from_millis(150)));
+        writer.join().unwrap();
+        assert!(path.exists());
     }
 
     #[test]
@@ -656,8 +718,14 @@ mod tests {
     fn partial_downloads_are_ignored() {
         let tmp = tempfile::tempdir().unwrap();
         let config = config_with_target(tmp.path());
-        assert!(!should_process(&config, &tmp.path().join("film.iso.crdownload")));
-        assert!(!should_process(&config, &tmp.path().join("bericht.pdf.part")));
+        assert!(!should_process(
+            &config,
+            &tmp.path().join("film.iso.crdownload")
+        ));
+        assert!(!should_process(
+            &config,
+            &tmp.path().join("bericht.pdf.part")
+        ));
         let safari_dir = tmp.path().join("bericht.zip.download");
         std::fs::create_dir_all(&safari_dir).unwrap();
         let inner = safari_dir.join("bericht.zip");
@@ -681,11 +749,9 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(outcome.category, "Bilder");
-        assert!(
-            target
-                .join("Bilder/alter-desktop/bilder/Abschlussfeier/foto.jpg")
-                .exists()
-        );
+        assert!(target
+            .join("Bilder/alter-desktop/bilder/Abschlussfeier/foto.jpg")
+            .exists());
         assert!(!src.exists());
     }
 
@@ -847,7 +913,9 @@ mod tests {
         let copy = target.join("Bilder/copy.jpg");
         std::fs::write(&copy, b"same-bytes").unwrap();
         index.refresh(&target);
-        let found = index.lookup(&hash).expect("hash must be found after refresh");
+        let found = index
+            .lookup(&hash)
+            .expect("hash must be found after refresh");
         assert!(found == existing.as_path() || found == copy.as_path());
     }
 }

@@ -17,6 +17,9 @@ struct ReportEntry<'a> {
 }
 
 pub fn append(report_path: &Path, outcome: &Outcome, dry_run: bool) -> Result<()> {
+    if dry_run {
+        return Ok(());
+    }
     let entry = ReportEntry {
         ts: Local::now().to_rfc3339(),
         action: outcome.action.as_str(),

@@ -173,21 +173,50 @@ impl Config {
     pub fn load(path: &Path) -> Result<Config> {
         let raw = std::fs::read_to_string(path)
             .with_context(|| format!("Config not readable: {}", path.display()))?;
-        let mut config: Config = toml::from_str(&raw)
-            .with_context(|| format!("Config invalid: {}", path.display()))?;
+        let mut config: Config =
+            toml::from_str(&raw).with_context(|| format!("Config invalid: {}", path.display()))?;
+        config.validate_subdirectories()?;
         config.target_dir = expand_tilde(&config.target_dir);
-        config.watch.dirs = config
-            .watch
-            .dirs
-            .iter()
-            .map(|d| expand_tilde(d))
-            .collect();
+        config.watch.dirs = config.watch.dirs.iter().map(|d| expand_tilde(d)).collect();
         Ok(config)
+    }
+
+    pub fn validate_subdirectories(&self) -> Result<()> {
+        let mut values = vec![
+            ("fallback_subdir", self.fallback_subdir.as_str()),
+            ("folders.subdir", self.folders.subdir.as_str()),
+            (
+                "dedupe.duplicates_subdir",
+                self.dedupe.duplicates_subdir.as_str(),
+            ),
+        ];
+        values.extend(
+            self.rules
+                .iter()
+                .map(|rule| (rule.name.as_str(), rule.subdir.as_str())),
+        );
+
+        for (field, value) in values {
+            if !valid_subdirectory_name(value) {
+                anyhow::bail!("Invalid destination subdirectory for {field}: {value:?}");
+            }
+        }
+        Ok(())
     }
 
     pub fn journal_path(&self) -> PathBuf {
         self.target_dir.join(".1folder-journal.jsonl")
     }
+}
+
+fn valid_subdirectory_name(value: &str) -> bool {
+    if value.is_empty() || value == "." || value == ".." {
+        return false;
+    }
+    if value.contains('/') || value.contains('\\') {
+        return false;
+    }
+    !Path::new(value).is_absolute()
 }
 
 pub fn default_config_path() -> Option<PathBuf> {
@@ -225,5 +254,29 @@ mod tests {
             "unexpected: {expanded:?}"
         );
         assert!(!expanded.to_string_lossy().starts_with('~'));
+    }
+
+    #[test]
+    fn rejects_absolute_and_traversal_subdirectories() {
+        let mut config: Config =
+            toml::from_str("target_dir = '/tmp/t'\n[watch]\ndirs = ['/w']").unwrap();
+
+        config.fallback_subdir = "/tmp/escape".to_string();
+        assert!(config.validate_subdirectories().is_err());
+
+        config.fallback_subdir = "../escape".to_string();
+        assert!(config.validate_subdirectories().is_err());
+
+        config.fallback_subdir = "Sonstiges".to_string();
+        config.rules.push(Rule {
+            name: "unsafe".to_string(),
+            subdir: "nested\\escape".to_string(),
+            extensions: vec![],
+            filename_keywords: vec![],
+            folder_keywords: vec![],
+            pdf_keywords: vec![],
+            color: None,
+        });
+        assert!(config.validate_subdirectories().is_err());
     }
 }

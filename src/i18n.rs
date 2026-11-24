@@ -34,6 +34,9 @@ pub struct Messages {
     pub duplicate_already_in: &'static str,
     pub move_failed: &'static str,
     pub dir_not_creatable: &'static str,
+    pub stability_timeout: &'static str,
+    pub watched_dir_unreadable: &'static str,
+    pub watched_entry_unreadable: &'static str,
     #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     pub tags_failed: &'static str,
 }
@@ -63,6 +66,9 @@ pub const EN: Messages = Messages {
     duplicate_already_in: "{} already exists in {}",
     move_failed: "Moving failed: {} → {}",
     dir_not_creatable: "Directory not creatable: {}",
+    stability_timeout: "File did not stabilize within the configured timeout: {}",
+    watched_dir_unreadable: "Watched directory could not be read: {}",
+    watched_entry_unreadable: "Directory entry could not be read in {}: {}",
     tags_failed: "Could not set Finder tags on {}: {}",
 };
 
@@ -91,6 +97,9 @@ pub const DE: Messages = Messages {
     duplicate_already_in: "{} liegt bereits in {}",
     move_failed: "Verschieben fehlgeschlagen: {} → {}",
     dir_not_creatable: "Ordner nicht anlegbar: {}",
+    stability_timeout: "Datei wurde innerhalb des konfigurierten Zeitlimits nicht stabil: {}",
+    watched_dir_unreadable: "Überwachter Ordner konnte nicht gelesen werden: {}",
+    watched_entry_unreadable: "Verzeichniseintrag in {} konnte nicht gelesen werden: {}",
     tags_failed: "Finder-Tags konnten nicht gesetzt werden für {}: {}",
 };
 
@@ -131,10 +140,13 @@ mod tests {
 
     #[test]
     fn fmt_replaces_placeholders_in_order() {
-        let result = fmt(Messages::get(Language::En).duplicate_skipped_log, &[
-            &Path::new("/a/b.txt").display(),
-            &Path::new("/c/d.txt").display(),
-        ]);
+        let result = fmt(
+            Messages::get(Language::En).duplicate_skipped_log,
+            &[
+                &Path::new("/a/b.txt").display(),
+                &Path::new("/c/d.txt").display(),
+            ],
+        );
         assert_eq!(result, "Duplicate skipped: /a/b.txt (already in /c/d.txt)");
     }
 }

@@ -5,7 +5,7 @@ use crate::i18n::Messages;
 use crate::journal;
 use crate::notify;
 use crate::organize::{
-    Action, HashIndex, Outcome, free_destination, is_partial_download, move_dir_raw, move_raw,
+    free_destination, is_partial_download, move_dir_raw, move_raw, Action, HashIndex, Outcome,
 };
 use crate::report;
 use crate::tags;
@@ -53,7 +53,9 @@ pub fn run(config: &Config, dry_run: bool, report_path: Option<&Path>) -> Result
         index.refresh(&config.target_dir);
         remove_empty_category_dirs(config);
     }
-    index.flush()?;
+    if !dry_run {
+        index.flush()?;
+    }
 
     log::info!("{}", crate::i18n::fmt(m.reorganized_done, &[&count]));
     if count > 0 {
@@ -149,12 +151,10 @@ fn reclassify_file(
     }
 
     let m = Messages::get(config.general.language);
-    fs::create_dir_all(&dest_dir).with_context(|| {
-        crate::i18n::fmt(m.dir_not_creatable, &[&dest_dir.display()])
-    })?;
-    move_raw(path, &dst).with_context(|| {
-        crate::i18n::fmt(m.move_failed, &[&path.display(), &dst.display()])
-    })?;
+    fs::create_dir_all(&dest_dir)
+        .with_context(|| crate::i18n::fmt(m.dir_not_creatable, &[&dest_dir.display()]))?;
+    move_raw(path, &dst)
+        .with_context(|| crate::i18n::fmt(m.move_failed, &[&path.display(), &dst.display()]))?;
     journal::append(
         &config.journal_path(),
         Action::Reclassified.as_str(),
@@ -178,11 +178,7 @@ fn reclassify_folder(config: &Config, dry_run: bool, item: &Item) -> Result<Opti
     }
 
     let dest_dir = config.target_dir.join(&category);
-    let folder_name: PathBuf = item
-        .path
-        .file_name()
-        .map(PathBuf::from)
-        .unwrap_or_default();
+    let folder_name: PathBuf = item.path.file_name().map(PathBuf::from).unwrap_or_default();
     let dst = free_destination(&dest_dir, &folder_name);
     let outcome = Outcome {
         action: Action::Reclassified,
@@ -198,9 +194,8 @@ fn reclassify_folder(config: &Config, dry_run: bool, item: &Item) -> Result<Opti
     }
 
     let m = Messages::get(config.general.language);
-    fs::create_dir_all(&dest_dir).with_context(|| {
-        crate::i18n::fmt(m.dir_not_creatable, &[&dest_dir.display()])
-    })?;
+    fs::create_dir_all(&dest_dir)
+        .with_context(|| crate::i18n::fmt(m.dir_not_creatable, &[&dest_dir.display()]))?;
     move_dir_raw(&item.path, &dst).with_context(|| {
         crate::i18n::fmt(m.move_failed, &[&item.path.display(), &dst.display()])
     })?;
@@ -307,7 +302,10 @@ mod tests {
         run(&config, false, None).unwrap();
         assert!(target.join("Sonstiges/mystery.xyz").exists());
         assert!(!old.exists());
-        assert!(!target.join("Dokumente").exists(), "emptied category is removed");
+        assert!(
+            !target.join("Dokumente").exists(),
+            "emptied category is removed"
+        );
     }
 
     #[test]
@@ -341,11 +339,7 @@ mod tests {
         assert!(old.exists());
         assert!(!target.join("FotosNeu").exists());
         assert!(!config.journal_path().exists());
-        let raw = fs::read_to_string(&report_path).unwrap();
-        let entry: serde_json::Value = serde_json::from_str(raw.lines().next().unwrap()).unwrap();
-        assert_eq!(entry["action"].as_str(), Some("reclassified"));
-        assert_eq!(entry["category"].as_str(), Some("FotosNeu"));
-        assert_eq!(entry["dry_run"].as_bool(), Some(true));
+        assert!(!report_path.exists());
     }
 
     #[test]

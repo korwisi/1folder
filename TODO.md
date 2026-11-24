@@ -14,17 +14,17 @@ implementation. They should take precedence over expanding the feature set.
 User-facing strings introduced by these items belong in the EN/DE message
 tables in `src/i18n.rs`.
 
-- [ ] Make dry-run strictly side-effect-free. A dry-run must not create or
+- [x] Make dry-run strictly side-effect-free. A dry-run must not create or
       update the persistent hash index (or any other file, journal, tag, or
       notification state). Add an integration test that snapshots the target
       and relevant state before and after dry-run, including when new files
       would otherwise be indexed.
-- [ ] Validate all configured category and destination subdirectory names
+- [x] Validate all configured category and destination subdirectory names
       before processing. Values such as absolute paths, path separators,
       `..`, or other paths escaping the target directory must be rejected.
       Cover `fallback_subdir`, `rules[].subdir`, `folders.subdir`, and
       `dedupe.duplicates_subdir`.
-- [ ] Do not index 1folder's own artifacts in the target folder. The persistent
+- [x] Do not index 1folder's own artifacts in the target folder. The persistent
       index already skips `.1folder_index.json` and `.DS_Store`
       (`src/index.rs`), but the journal `.1folder-journal.jsonl` written into
       the target folder is still hashed into the index and can appear as a
@@ -34,7 +34,7 @@ tables in `src/i18n.rs`.
       with line numbers, distinguish a truncated final record from corruption
       in the middle of the journal where possible, and prevent undo from
       proceeding as though an incomplete history were complete.
-- [ ] Surface input-directory enumeration errors. Failures to open a watched
+- [x] Surface input-directory enumeration errors. Failures to open a watched
       directory or read individual entries must be reported and reflected in
       the command's result/exit status; do not silently treat an unreadable
       directory as empty.
@@ -65,7 +65,7 @@ tables in `src/i18n.rs`.
       (e.g. `pending → filesystem-done → journaled`), recorded before the
       filesystem change, so the next run can detect the intermediate state and
       reconcile it safely. Do not implement the two fixes independently.
-- [ ] Make file stability detection fail safely. Currently the result of
+- [x] Make file stability detection fail safely. Currently the result of
       `wait_until_stable()` is ignored at both call sites (`src/organize.rs`
       `process_file` and `process_folder`), and on timeout expiry the function
       reports a continuously changing file as processable as long as it still
@@ -82,7 +82,7 @@ tables in `src/i18n.rs`.
       failures. Currently, failed events can be removed from the pending set;
       ensure files are not silently abandoned and make repeated failures
       visible without creating an unbounded retry loop.
-- [ ] Make file stability detection fail safely. If a file is still changing
+- [x] Make file stability detection fail safely. If a file is still changing
       when the configured stability timeout expires, do not process it as
       stable. Keep it pending for a later retry and make the timeout visible
       to the user.

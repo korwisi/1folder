@@ -84,8 +84,9 @@ impl PersistentIndex {
             if entry.file_type().is_file() {
                 let path = entry.path().to_path_buf();
                 let file_name = path.file_name().unwrap_or_default();
-                // Skip index file and system files
+                // Skip 1folder's own state and system files
                 if file_name != std::ffi::OsStr::new(".1folder_index.json")
+                    && file_name != std::ffi::OsStr::new(".1folder-journal.jsonl")
                     && file_name != std::ffi::OsStr::new(".DS_Store")
                 {
                     entries.push(path);
@@ -108,9 +109,7 @@ impl PersistentIndex {
             let mtime_i64 = mtime.map(Self::mtime_to_i64).unwrap_or(0);
 
             let hash = match self.cache.get(&path) {
-                Some(cached)
-                    if cached.size == size && cached.modified == mtime_i64 =>
-                {
+                Some(cached) if cached.size == size && cached.modified == mtime_i64 => {
                     cached.hash.clone()
                 }
                 _ => match sha256_file(&path) {
@@ -120,17 +119,20 @@ impl PersistentIndex {
             };
 
             by_hash.entry(hash.clone()).or_insert_with(|| path.clone());
-            fresh_cache.insert(path, CachedFile {
-                size,
-                modified: mtime_i64,
-                hash,
-            });
+            fresh_cache.insert(
+                path,
+                CachedFile {
+                    size,
+                    modified: mtime_i64,
+                    hash,
+                },
+            );
         }
 
         let changed = fresh_cache.len() != self.cache.len()
-            || fresh_cache.iter().any(|(path, cached)| {
-                self.cache.get(path) != Some(cached)
-            });
+            || fresh_cache
+                .iter()
+                .any(|(path, cached)| self.cache.get(path) != Some(cached));
 
         self.cache = fresh_cache;
         self.by_hash = by_hash;
@@ -187,11 +189,12 @@ impl PersistentIndex {
                 .with_context(|| format!("Failed to write index: {}", temp_path.display()))?;
         }
 
-        fs::rename(&temp_path, &self.index_path)
-            .with_context(|| format!(
+        fs::rename(&temp_path, &self.index_path).with_context(|| {
+            format!(
                 "Failed to rename temp index to {}",
                 self.index_path.display()
-            ))?;
+            )
+        })?;
 
         self.dirty = false;
         Ok(())
@@ -237,19 +240,11 @@ mod tests {
         idx.flush().unwrap();
         idx.dirty = false;
 
-        let first_hash = idx
-            .cache
-            .get(&file_a)
-            .map(|c| c.hash.clone())
-            .unwrap();
+        let first_hash = idx.cache.get(&file_a).map(|c| c.hash.clone()).unwrap();
 
         // Refresh again without changing the file
         idx.refresh(dir.path()).unwrap();
-        let second_hash = idx
-            .cache
-            .get(&file_a)
-            .map(|c| c.hash.clone())
-            .unwrap();
+        let second_hash = idx.cache.get(&file_a).map(|c| c.hash.clone()).unwrap();
 
         assert_eq!(first_hash, second_hash);
         assert!(!idx.dirty);
@@ -342,5 +337,23 @@ mod tests {
         // Refresh again - should not include the .1folder_index.json file
         idx.refresh(dir.path()).unwrap();
         assert_eq!(idx.cache.len(), 1);
+    }
+
+    #[test]
+    fn skip_journal_and_index_state_files() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("kept.txt"), b"kept").unwrap();
+        fs::write(
+            dir.path().join(".1folder-journal.jsonl"),
+            b"{\"action\":\"moved\"}\n",
+        )
+        .unwrap();
+
+        let mut idx = PersistentIndex::load_or_create(dir.path()).unwrap();
+        idx.refresh(dir.path()).unwrap();
+        idx.flush().unwrap();
+
+        assert_eq!(idx.cache.len(), 1);
+        assert!(idx.lookup("anything").is_none());
     }
 }

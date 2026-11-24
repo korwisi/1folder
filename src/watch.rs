@@ -4,7 +4,7 @@ use crate::organize::{self, process_file, process_folder, HashIndex};
 use crate::report;
 use anyhow::Result;
 use notify::event::{AccessKind, AccessMode, ModifyKind};
-use notify::{Event, EventKind, RecursiveMode, Watcher, recommended_watcher};
+use notify::{recommended_watcher, Event, EventKind, RecursiveMode, Watcher};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{RecvTimeoutError, TryRecvError};
@@ -17,17 +17,24 @@ pub fn run_watch(config: &Config, dry_run: bool, report_path: Option<&Path>) -> 
     let m = Messages::get(config.general.language);
     for dir in &config.watch.dirs {
         if !dir.is_dir() {
-            log::warn!("{}", crate::i18n::fmt(m.watch_dir_missing, &[&dir.display()]));
+            log::warn!(
+                "{}",
+                crate::i18n::fmt(m.watch_dir_missing, &[&dir.display()])
+            );
             continue;
         }
         watcher.watch(dir, RecursiveMode::Recursive)?;
         log::info!("{}", crate::i18n::fmt(m.watching, &[&dir.display()]));
     }
-    log::info!("{}", crate::i18n::fmt(m.target_folder, &[&config.target_dir.display()]));
+    log::info!(
+        "{}",
+        crate::i18n::fmt(m.target_folder, &[&config.target_dir.display()])
+    );
     log::info!("{}", m.running_hint);
 
     let debounce = Duration::from_millis(config.watch.debounce_ms);
     let mut pending: HashMap<PathBuf, Instant> = HashMap::new();
+    let mut retry_attempts: HashMap<PathBuf, usize> = HashMap::new();
     let mut index = HashIndex::with_target(&config.target_dir)?;
 
     loop {
@@ -37,20 +44,32 @@ pub fn run_watch(config: &Config, dry_run: bool, report_path: Option<&Path>) -> 
             Err(RecvTimeoutError::Disconnected) => break,
         }
 
-        process_due(&mut pending, config, dry_run, debounce, &mut index, report_path)?;
+        process_due(
+            &mut pending,
+            &mut retry_attempts,
+            config,
+            dry_run,
+            debounce,
+            &mut index,
+            report_path,
+        )?;
 
         loop {
             match rx.try_recv() {
                 Ok(event) => handle_event(event, &mut pending, debounce, m),
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => {
-                    index.flush().ok();
+                    if !dry_run {
+                        index.flush().ok();
+                    }
                     return Ok(());
                 }
             }
         }
     }
-    index.flush()?;
+    if !dry_run {
+        index.flush()?;
+    }
     Ok(())
 }
 
@@ -77,7 +96,9 @@ fn handle_event(
             // File handle closed after writing: for browser downloads this is the
             // strongest completion signal, so the file is ready immediately.
             for path in event.paths {
-                let ready = Instant::now().checked_sub(debounce).unwrap_or_else(Instant::now);
+                let ready = Instant::now()
+                    .checked_sub(debounce)
+                    .unwrap_or_else(Instant::now);
                 pending.insert(path, ready);
             }
         }
@@ -102,6 +123,7 @@ fn handle_event(
 
 fn process_due(
     pending: &mut HashMap<PathBuf, Instant>,
+    retry_attempts: &mut HashMap<PathBuf, usize>,
     config: &Config,
     dry_run: bool,
     debounce: Duration,
@@ -124,18 +146,37 @@ fn process_due(
             process_file(config, dry_run, &path, index)
         };
         match result {
-            Ok(Some(outcome)) => write_report(config, dry_run, report_path, Some(&outcome)),
-            Ok(None) => {}
+            Ok(Some(outcome)) => {
+                retry_attempts.remove(&path);
+                write_report(config, dry_run, report_path, Some(&outcome));
+            }
+            Ok(None) => {
+                retry_attempts.remove(&path);
+            }
             Err(e) => {
                 let m = Messages::get(config.general.language);
                 log::error!(
                     "{}",
                     crate::i18n::fmt(m.error_processing, &[&path.display(), &format!("{e:#}")])
                 );
+                let attempts = retry_attempts.entry(path.clone()).or_insert(0);
+                *attempts += 1;
+                if *attempts < 10 {
+                    pending.insert(path, Instant::now());
+                } else {
+                    log::error!(
+                        "{}",
+                        crate::i18n::fmt(
+                            m.error_processing,
+                            &[&path.display(), &"retry limit reached"],
+                        )
+                    );
+                    retry_attempts.remove(&path);
+                }
             }
         }
     }
-    if has_due {
+    if has_due && !dry_run {
         index.flush()?;
     }
     Ok(())
@@ -152,7 +193,10 @@ fn write_report(
     };
     if let Err(e) = report::append(report_path, outcome, dry_run) {
         let m = Messages::get(config.general.language);
-        log::warn!("{}", crate::i18n::fmt(m.report_write_failed, &[&format!("{e:#}")]));
+        log::warn!(
+            "{}",
+            crate::i18n::fmt(m.report_write_failed, &[&format!("{e:#}")])
+        );
     }
 }
 
@@ -174,19 +218,46 @@ pub fn run_once(config: &Config, dry_run: bool, report_path: Option<&Path>) -> R
     let m = Messages::get(config.general.language);
     let mut files: Vec<PathBuf> = Vec::new();
     let mut folders: Vec<PathBuf> = Vec::new();
+    let mut enumeration_failed = false;
     for dir in &config.watch.dirs {
         if !dir.is_dir() {
-            log::warn!("{}", crate::i18n::fmt(m.watch_dir_missing, &[&dir.display()]));
+            log::warn!(
+                "{}",
+                crate::i18n::fmt(m.watch_dir_missing, &[&dir.display()])
+            );
             continue;
         }
-        let mut entries: Vec<PathBuf> = std::fs::read_dir(dir)
-            .map(|entries| {
-                entries
-                    .filter_map(|e| e.ok())
-                    .map(|e| e.path())
-                    .collect()
-            })
-            .unwrap_or_default();
+        let entries = match std::fs::read_dir(dir) {
+            Ok(entries) => entries,
+            Err(e) => {
+                enumeration_failed = true;
+                log::error!(
+                    "{}",
+                    crate::i18n::fmt(
+                        m.watched_dir_unreadable,
+                        &[&format!("{}: {}", dir.display(), e)]
+                    )
+                );
+                continue;
+            }
+        };
+        let mut entry_paths = Vec::new();
+        for entry in entries {
+            match entry {
+                Ok(entry) => entry_paths.push(entry.path()),
+                Err(e) => {
+                    enumeration_failed = true;
+                    log::error!(
+                        "{}",
+                        crate::i18n::fmt(
+                            m.watched_entry_unreadable,
+                            &[&dir.display(), &format!("{e}")],
+                        )
+                    );
+                }
+            }
+        }
+        let mut entries = entry_paths;
         entries.sort();
         for path in entries {
             if path.is_dir() {
@@ -206,6 +277,7 @@ pub fn run_once(config: &Config, dry_run: bool, report_path: Option<&Path>) -> R
     );
     let mut index = HashIndex::with_target(&config.target_dir)?;
     let mut moved = 0usize;
+    let mut processing_failed = false;
     for dir in &folders {
         match process_folder(config, dry_run, dir) {
             Ok(Some(outcome)) => {
@@ -213,10 +285,13 @@ pub fn run_once(config: &Config, dry_run: bool, report_path: Option<&Path>) -> R
                 write_report(config, dry_run, report_path, Some(&outcome));
             }
             Ok(None) => {}
-            Err(e) => log::error!(
-                "{}",
-                crate::i18n::fmt(m.error_processing, &[&dir.display(), &format!("{e:#}")])
-            ),
+            Err(e) => {
+                processing_failed = true;
+                log::error!(
+                    "{}",
+                    crate::i18n::fmt(m.error_processing, &[&dir.display(), &format!("{e:#}")])
+                );
+            }
         }
     }
     for path in &files {
@@ -242,14 +317,22 @@ pub fn run_once(config: &Config, dry_run: bool, report_path: Option<&Path>) -> R
                 write_report(config, dry_run, report_path, Some(&outcome));
             }
             Ok(None) => {}
-            Err(e) => log::error!(
-                "{}",
-                crate::i18n::fmt(m.error_processing, &[&path.display(), &format!("{e:#}")])
-            ),
+            Err(e) => {
+                processing_failed = true;
+                log::error!(
+                    "{}",
+                    crate::i18n::fmt(m.error_processing, &[&path.display(), &format!("{e:#}")])
+                );
+            }
         }
     }
     log::info!("{}", crate::i18n::fmt(m.done_sorted, &[&moved]));
-    index.flush()?;
+    if !dry_run {
+        index.flush()?;
+    }
+    if enumeration_failed || processing_failed {
+        anyhow::bail!("One or more watched entries could not be processed");
+    }
     Ok(())
 }
 
@@ -260,17 +343,31 @@ mod tests {
 
     #[test]
     fn browser_temp_files_are_detected() {
-        assert!(organize::is_partial_download(Path::new("~/Downloads/ubuntu.iso.crdownload")));
-        assert!(organize::is_partial_download(Path::new("~/Downloads/bericht.pdf.part")));
-        assert!(organize::is_partial_download(Path::new("~/Downloads/bericht.zip.download/file.zip")));
-        assert!(organize::is_partial_download(Path::new("~/Downloads/datei.tmp")));
+        assert!(organize::is_partial_download(Path::new(
+            "~/Downloads/ubuntu.iso.crdownload"
+        )));
+        assert!(organize::is_partial_download(Path::new(
+            "~/Downloads/bericht.pdf.part"
+        )));
+        assert!(organize::is_partial_download(Path::new(
+            "~/Downloads/bericht.zip.download/file.zip"
+        )));
+        assert!(organize::is_partial_download(Path::new(
+            "~/Downloads/datei.tmp"
+        )));
     }
 
     #[test]
     fn finished_files_are_not_detected_as_partial() {
-        assert!(!organize::is_partial_download(Path::new("~/Downloads/ubuntu.iso")));
-        assert!(!organize::is_partial_download(Path::new("~/Downloads/bericht.pdf")));
-        assert!(!organize::is_partial_download(Path::new("~/Downloads/tmp_foto.jpg")));
+        assert!(!organize::is_partial_download(Path::new(
+            "~/Downloads/ubuntu.iso"
+        )));
+        assert!(!organize::is_partial_download(Path::new(
+            "~/Downloads/bericht.pdf"
+        )));
+        assert!(!organize::is_partial_download(Path::new(
+            "~/Downloads/tmp_foto.jpg"
+        )));
     }
 
     fn watch_config(dirs: &[&str]) -> Config {
@@ -311,7 +408,7 @@ mod tests {
     }
 
     #[test]
-    fn once_mode_writes_report_lines_in_dry_run() {
+    fn once_mode_dry_run_has_no_side_effects() {
         let tmp = tempfile::tempdir().unwrap();
         let mut config: Config = toml::from_str(crate::config::DEFAULT_CONFIG).unwrap();
         config.target_dir = tmp.path().join("target");
@@ -325,30 +422,25 @@ mod tests {
         std::fs::write(repo.join("main.rs"), b"fn main() {}").unwrap();
         std::fs::write(repo.join("README.md"), b"# repo").unwrap();
         let report_path = tmp.path().join("report.jsonl");
+        let main_snapshot = std::fs::read(repo.join("main.rs")).unwrap();
+        let readme_snapshot = std::fs::read(repo.join("README.md")).unwrap();
+        let foto_snapshot = std::fs::read(watched.join("foto.jpg")).unwrap();
 
         run_once(&config, true, Some(&report_path)).unwrap();
 
-        let raw = std::fs::read_to_string(&report_path).unwrap();
-        let entries: Vec<serde_json::Value> = raw
-            .lines()
-            .map(|line| serde_json::from_str(line).unwrap())
-            .collect();
-        assert_eq!(entries.len(), 2);
-        assert!(entries
-            .iter()
-            .all(|e| e["dry_run"].as_bool() == Some(true)));
-        let folder_entry = entries
-            .iter()
-            .find(|e| e["action"].as_str() == Some("moved_folder"))
-            .unwrap();
-        assert_eq!(folder_entry["category"].as_str(), Some("Sammlungen"));
-        assert_eq!(folder_entry["rule"].as_str(), Some("mixed-content"));
-        let file_entry = entries
-            .iter()
-            .find(|e| e["action"].as_str() == Some("moved"))
-            .unwrap();
-        assert_eq!(file_entry["category"].as_str(), Some("Bilder"));
-        assert_eq!(file_entry["rule"].as_str(), Some("bilder"));
+        assert_eq!(
+            std::fs::read(watched.join("foto.jpg")).unwrap(),
+            foto_snapshot
+        );
+        assert_eq!(std::fs::read(repo.join("main.rs")).unwrap(), main_snapshot);
+        assert_eq!(
+            std::fs::read(repo.join("README.md")).unwrap(),
+            readme_snapshot
+        );
+        assert!(!config.target_dir.exists());
+        assert!(!config.journal_path().exists());
+        assert!(!config.target_dir.join(".1folder_index.json").exists());
+        assert!(!report_path.exists());
         assert!(watched.join("foto.jpg").exists());
         assert!(repo.exists());
     }
