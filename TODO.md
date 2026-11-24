@@ -30,7 +30,7 @@ tables in `src/i18n.rs`.
       the target folder is still hashed into the index and can appear as a
       duplicate candidate. Exclude the journal (and any future tool-owned
       files) from `refresh()`.
-- [ ] Do not silently discard malformed journal records. Report invalid lines
+- [x] Do not silently discard malformed journal records. Report invalid lines
       with line numbers, distinguish a truncated final record from corruption
       in the middle of the journal where possible, and prevent undo from
       proceeding as though an incomplete history were complete.
@@ -98,7 +98,7 @@ tests together with the fix rather than maintaining parallel descriptions.
       "Make dry-run strictly side-effect-free").
 - [ ] Rejection of unsafe category/subdirectory values, including absolute
       paths and traversal attempts (see the validation item).
-- [ ] Malformed journal handling: invalid middle lines, a truncated final
+- [x] Malformed journal handling: invalid middle lines, a truncated final
       line, and undo behavior when the journal is incomplete.
 - [ ] Unreadable or disappearing input directories and individual
       directory-entry errors where they can be reproduced reliably.

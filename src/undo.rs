@@ -37,11 +37,23 @@ pub fn parse_duration(raw: &str) -> Option<Duration> {
 
 pub fn run(config: &Config, dry_run: bool, selection: &UndoSelection) -> Result<()> {
     let m = Messages::get(config.general.language);
-    let records = journal::read(&config.journal_path())?;
-    let undone: HashSet<String> = records
-        .iter()
-        .filter_map(|r| r.undo_of.clone())
-        .collect();
+    let records = match journal::read(&config.journal_path()) {
+        Ok(records) => records,
+        Err(journal::JournalReadError::Malformed { line, reason }) => {
+            anyhow::bail!(
+                "{}",
+                crate::i18n::fmt(m.journal_malformed, &[&line, &reason])
+            );
+        }
+        Err(journal::JournalReadError::Truncated { line, reason }) => {
+            anyhow::bail!(
+                "{}",
+                crate::i18n::fmt(m.journal_truncated, &[&line, &reason])
+            );
+        }
+        Err(error) => return Err(error.into()),
+    };
+    let undone: HashSet<String> = records.iter().filter_map(|r| r.undo_of.clone()).collect();
     let mut candidates: Vec<&JournalRecord> = records
         .iter()
         .filter(|r| UNDOABLE.contains(&r.action.as_str()))
@@ -92,7 +104,10 @@ fn restore(config: &Config, dry_run: bool, record: &JournalRecord) -> Result<boo
     let dst = PathBuf::from(&record.dst);
     let src = PathBuf::from(&record.src);
     if !dst.exists() {
-        log::warn!("{}", crate::i18n::fmt(m.undo_dst_missing, &[&dst.display()]));
+        log::warn!(
+            "{}",
+            crate::i18n::fmt(m.undo_dst_missing, &[&dst.display()])
+        );
         return Ok(false);
     }
     if dry_run {
@@ -100,28 +115,21 @@ fn restore(config: &Config, dry_run: bool, record: &JournalRecord) -> Result<boo
         return Ok(true);
     }
     let parent = src.parent().unwrap_or(&src).to_path_buf();
-    std::fs::create_dir_all(&parent).with_context(|| {
-        crate::i18n::fmt(m.dir_not_creatable, &[&parent.display()])
-    })?;
+    std::fs::create_dir_all(&parent)
+        .with_context(|| crate::i18n::fmt(m.dir_not_creatable, &[&parent.display()]))?;
     let target = if src.exists() {
         let name = src.file_name().map(Path::new).unwrap_or(src.as_path());
         crate::organize::free_destination(&parent, name)
     } else {
         src.clone()
     };
-    crate::organize::move_raw(&dst, &target).with_context(|| {
-        crate::i18n::fmt(m.move_failed, &[&dst.display(), &target.display()])
-    })?;
+    crate::organize::move_raw(&dst, &target)
+        .with_context(|| crate::i18n::fmt(m.move_failed, &[&dst.display(), &target.display()]))?;
     log::info!(
         "{}",
         crate::i18n::fmt(m.undo_restored, &[&dst.display(), &target.display()])
     );
-    journal::append_undo(
-        &config.journal_path(),
-        record.id.as_deref(),
-        &dst,
-        &target,
-    )?;
+    journal::append_undo(&config.journal_path(), record.id.as_deref(), &dst, &target)?;
     Ok(true)
 }
 
@@ -177,7 +185,10 @@ mod tests {
         assert!(!config.target_dir.join("Bilder/a.jpg").exists());
 
         run(&config, false, &selection(true, None)).unwrap();
-        assert!(config.watch.dirs[0].join("a.jpg").exists(), "second undo must not move the file again");
+        assert!(
+            config.watch.dirs[0].join("a.jpg").exists(),
+            "second undo must not move the file again"
+        );
     }
 
     #[test]
@@ -207,11 +218,7 @@ mod tests {
             src_prefix: Some(config.watch.dirs[0].join("alter-desktop")),
         };
         run(&config, false, &sel).unwrap();
-        assert!(config
-            .watch
-            .dirs[0]
-            .join("alter-desktop/a.jpg")
-            .exists());
+        assert!(config.watch.dirs[0].join("alter-desktop/a.jpg").exists());
         assert!(!config.watch.dirs[0].join("anderes/b.txt").exists());
         assert!(config.target_dir.join("Dokumente/b.txt").exists());
     }
@@ -283,5 +290,42 @@ mod tests {
         run(&config, false, &selection(true, None)).unwrap();
         assert!(config.watch.dirs[0].join("a.jpg").exists());
         assert!(!dst.exists());
+    }
+
+    #[test]
+    fn undo_refuses_malformed_middle_record() {
+        let tmp = tempfile::tempdir().unwrap();
+        let config = config_with_target(tmp.path());
+        fs::create_dir_all(&config.target_dir).unwrap();
+        fs::write(
+            config.journal_path(),
+            format!(
+                "{{\"ts\":\"{}\",\"action\":\"moved\",\"src\":\"{}\",\"dst\":\"{}\"}}\nbroken\n",
+                chrono::Local::now().to_rfc3339(),
+                config.watch.dirs[0].join("a.jpg").display(),
+                config.target_dir.join("Bilder/a.jpg").display()
+            ),
+        )
+        .unwrap();
+
+        let error = run(&config, false, &selection(true, None)).unwrap_err();
+        assert!(error.to_string().contains("line 2") || error.to_string().contains("Zeile 2"));
+    }
+
+    #[test]
+    fn undo_refuses_truncated_final_record() {
+        let tmp = tempfile::tempdir().unwrap();
+        let config = config_with_target(tmp.path());
+        fs::create_dir_all(&config.target_dir).unwrap();
+        fs::write(config.journal_path(), b"{\"ts\":\"unfinished").unwrap();
+
+        let error = run(&config, false, &selection(true, None)).unwrap_err();
+        assert!(
+            error.to_string().contains("Truncated final journal record")
+                || error
+                    .to_string()
+                    .contains("Abgeschnittener letzter Journaleintrag")
+        );
+        assert!(error.to_string().contains("line 1") || error.to_string().contains("Zeile 1"));
     }
 }

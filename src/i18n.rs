@@ -37,6 +37,8 @@ pub struct Messages {
     pub stability_timeout: &'static str,
     pub watched_dir_unreadable: &'static str,
     pub watched_entry_unreadable: &'static str,
+    pub journal_malformed: &'static str,
+    pub journal_truncated: &'static str,
     #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     pub tags_failed: &'static str,
 }
@@ -69,6 +71,8 @@ pub const EN: Messages = Messages {
     stability_timeout: "File did not stabilize within the configured timeout: {}",
     watched_dir_unreadable: "Watched directory could not be read: {}",
     watched_entry_unreadable: "Directory entry could not be read in {}: {}",
+    journal_malformed: "Malformed journal record at line {}: {}",
+    journal_truncated: "Truncated final journal record at line {}: {}",
     tags_failed: "Could not set Finder tags on {}: {}",
 };
 
@@ -100,6 +104,8 @@ pub const DE: Messages = Messages {
     stability_timeout: "Datei wurde innerhalb des konfigurierten Zeitlimits nicht stabil: {}",
     watched_dir_unreadable: "Überwachter Ordner konnte nicht gelesen werden: {}",
     watched_entry_unreadable: "Verzeichniseintrag in {} konnte nicht gelesen werden: {}",
+    journal_malformed: "Fehlerhafter Journaleintrag in Zeile {}: {}",
+    journal_truncated: "Abgeschnittener letzter Journaleintrag in Zeile {}: {}",
     tags_failed: "Finder-Tags konnten nicht gesetzt werden für {}: {}",
 };
 
