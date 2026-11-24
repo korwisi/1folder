@@ -6,28 +6,30 @@ Handoff notes for the release automation work (continuation context; see
 ## Status
 
 - [x] `release.yml` created and syntax-checked (YAML parses).
-- [ ] First real run: not yet verified. Trigger by pushing a `v*` tag, e.g.
-      `git tag v0.4.2 && git push origin v0.4.2`. Only tick the Automate release
-      artifacts item in `TODO.md` (Builds and releases section) after the first
-      successful run.
+- [x] First real run: verified with tag `v0.5.0` (run 45422234588). The
+      workflow built, packaged, created the GitHub Release, and uploaded
+      `onefolder-v0.5.0-macos-universal.tar.gz`.
 - [ ] Code signing / notarization: separate open TODO in `TODO.md`.
 
 ## How the workflow works
 
 - Trigger: `push: tags: ["v*"]` — no manual dispatch. Tags must be
-  `vMAJOR.MINOR.PATCH` (current version at time of writing: 0.4.1).
+  `vMAJOR.MINOR.PATCH` (current version at time of writing: 0.5.0).
 - Single job on `macos-latest` (ARM runner; irrelevant since both architectures
   are built explicitly).
 - Steps:
-  1. `dtolnay/rust-toolchain@stable` with targets
+  1. `actions/checkout@v5`.
+  2. `dtolnay/rust-toolchain@stable` with targets
      `x86_64-apple-darwin,aarch64-apple-darwin` (satisfies the prerequisites of
      `build-universal.sh`, which then runs unchanged).
-  2. `bash build-universal.sh` → universal binary at
+  3. `cargo test`.
+  4. `cargo clippy --all-targets -- -D warnings`.
+  5. `bash build-universal.sh` → universal binary at
      `target/universal-release/onefolder` (`lipo` of both arches).
-  3. Packaging: tars the binary together with `config.example.toml`,
+  6. Packaging: tars the binary together with `config.example.toml`,
      `README.md`, `LICENSE` into
      `onefolder-<tag>-macos-universal.tar.gz`.
-  4. Release step: uses the built-in `GITHUB_TOKEN` (needs
+  7. Release step: uses the built-in `GITHUB_TOKEN` (needs
      `permissions: contents: write`, already set; no secrets required). Creates
      the release with `--generate-notes` if it does not exist yet, then uploads
      the asset with `--clobber` so workflow re-runs (e.g. re-pushed tag) cannot
@@ -41,7 +43,18 @@ Handoff notes for the release automation work (continuation context; see
   (App Store Connect API key).
 - Repo has no CI beyond this release workflow.
 
+## Verified `v0.5.0` release
+
+- Workflow run: 45422234588, successful.
+- Asset:
+  `onefolder-v0.5.0-macos-universal.tar.gz`.
+- Asset contents: `onefolder`, `config.example.toml`, `README.md`, `LICENSE`.
+- Universal binary verified with `lipo` as `x86_64 arm64`.
+- Downloaded archive extracted and installed as `/usr/local/bin/onefolder`.
+- Installed executable reports `1folder 0.5.0`.
+- LaunchAgent `de.korwisi.onefolder` was restarted after installation.
+
 ## Why this file exists
 
-Xcode on the original machine was too outdated to install `gh`; work was
-continued elsewhere. This file carries the context across machines.
+This file carries the context across machines and records the verified release
+procedure and remaining signing/notarization work.
