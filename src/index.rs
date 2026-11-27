@@ -215,7 +215,7 @@ impl PersistentIndex {
 
     /// Remove a file from the index (e.g., after it's moved out of target).
     #[allow(dead_code)]
-    pub fn remove(&mut self, path: &Path) -> Option<CachedFile> {
+    pub(crate) fn remove(&mut self, path: &Path) -> Option<CachedFile> {
         if let Some(cached) = self.cache.remove(path) {
             if self.by_hash.get(&cached.hash) == Some(&path.to_path_buf()) {
                 self.by_hash.remove(&cached.hash);

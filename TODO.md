@@ -199,10 +199,20 @@ tests together with the fix rather than maintaining parallel descriptions.
 These are preparatory items, not a commitment to start a GUI implementation
 immediately. See LONGTERM-GOALS.md for product direction.
 
-- [ ] Keep the organization engine independent of presentation and CLI concerns
+- [x] Keep the organization engine independent of presentation and CLI concerns
       so a future native macOS app can reuse the same Rust core.
-- [ ] Before choosing a GUI framework, define a small, stable interface between
+- [x] Extract the reusable Rust modules into a library target and provide a
+      UI-neutral preview/dry-run facade in `src/core.rs`; the CLI now uses this
+      facade for `--once --dry-run`.
+- [ ] Before choosing a GUI framework, define the remaining stable interface between
       the core and its clients (configuration, preview/dry-run, execution
       status, activity history, and undo).
+- [ ] Add UI-neutral core operations for execution status, one-shot execution,
+      activity history, reconciliation, category management, and undo.
+- [ ] Build a minimal native macOS prototype against the core API. Use it to
+      validate Rust/Swift interop and the first usable workflow before adding
+      broader menu-bar or settings features.
+- [ ] Decide the packaging and distribution shape for the native app, including
+      LaunchAgent lifecycle, permissions, code signing, and notarization.
 - [ ] Preserve a fully usable CLI and configuration-file workflow; a GUI must
       be an additional interface, not a prerequisite for using the core.

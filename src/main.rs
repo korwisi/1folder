@@ -1,22 +1,7 @@
 use anyhow::{Context, Result};
 use clap::Parser;
+use onefolder::{category, config, core, i18n, operation, reorganize, undo, watch};
 use std::path::PathBuf;
-
-mod category;
-mod classify;
-mod config;
-mod hash;
-mod i18n;
-mod index;
-mod journal;
-mod notify;
-mod operation;
-mod organize;
-mod reorganize;
-mod report;
-mod tags;
-mod undo;
-mod watch;
 
 #[derive(Parser)]
 #[command(
@@ -111,7 +96,31 @@ fn main() -> Result<()> {
     }
 
     if cli.once {
-        watch::run_once(&config, cli.dry_run, cli.report.as_deref())
+        if cli.dry_run {
+            let summary = core::preview(&config, cli.report.as_deref())?;
+            for operation in &summary.operations {
+                println!(
+                    "[dry-run] {}: {} → {}",
+                    operation.action,
+                    operation.src.display(),
+                    operation.dst.display()
+                );
+            }
+            for issue in &summary.issues {
+                if let Some(path) = &issue.path {
+                    log::error!("{}: {}", path.display(), issue.message);
+                } else {
+                    log::error!("{}", issue.message);
+                }
+            }
+            println!("Previewed {} item(s)", summary.operations.len());
+            if !summary.issues.is_empty() {
+                anyhow::bail!("One or more watched entries could not be previewed");
+            }
+            Ok(())
+        } else {
+            watch::run_once(&config, false, cli.report.as_deref())
+        }
     } else {
         watch::run_watch(&config, cli.dry_run, cli.report.as_deref())
     }
