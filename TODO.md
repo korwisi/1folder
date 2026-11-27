@@ -96,7 +96,7 @@ tests together with the fix rather than maintaining parallel descriptions.
       state unchanged, including an end-to-end test of the actual CLI/run-once
       workflow rather than only unit tests of `process_file()` (see
       "Make dry-run strictly side-effect-free").
-- [ ] Rejection of unsafe category/subdirectory values, including absolute
+- [x] Rejection of unsafe category/subdirectory values, including absolute
       paths and traversal attempts (see the validation item).
 - [x] Malformed journal handling: invalid middle lines, a truncated final
       line, and undo behavior when the journal is incomplete.

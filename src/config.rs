@@ -278,5 +278,13 @@ mod tests {
             color: None,
         });
         assert!(config.validate_subdirectories().is_err());
+
+        config.rules.clear();
+        config.folders.subdir = "../Folders".to_string();
+        assert!(config.validate_subdirectories().is_err());
+
+        config.folders.subdir = "Sammlungen".to_string();
+        config.dedupe.duplicates_subdir = "/tmp/Duplicates".to_string();
+        assert!(config.validate_subdirectories().is_err());
     }
 }
