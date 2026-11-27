@@ -332,11 +332,28 @@ mod tests {
         let file_a = dir.path().join("a.txt");
         fs::write(&file_a, b"hello").unwrap();
 
+        let fixed_mtime = SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        let times = fs::FileTimes::new()
+            .set_modified(fixed_mtime)
+            .set_accessed(fixed_mtime);
+        fs::File::options()
+            .write(true)
+            .open(&file_a)
+            .unwrap()
+            .set_times(times)
+            .unwrap();
+
         let mut idx = PersistentIndex::load_or_create(dir.path()).unwrap();
         idx.refresh(dir.path()).unwrap();
         let first_hash = idx.cache.get(&file_a).unwrap().hash.clone();
 
         fs::write(&file_a, b"world").unwrap();
+        fs::File::options()
+            .write(true)
+            .open(&file_a)
+            .unwrap()
+            .set_times(times)
+            .unwrap();
 
         idx.refresh(dir.path()).unwrap();
         let replacement_hash = idx.cache.get(&file_a).unwrap().hash.clone();

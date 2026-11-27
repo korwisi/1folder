@@ -105,7 +105,7 @@ tests together with the fix rather than maintaining parallel descriptions.
 - [x] Interrupted or failed cross-filesystem moves, including failures during
       copy, final rename, and source removal (see "Make cross-filesystem moves
       failure-safe").
-- [ ] Hash-index invalidation when a file is replaced by another file of the
+- [x] Hash-index invalidation when a file is replaced by another file of the
       same size with a modification time that falls within the same second.
 - [x] Undo behavior when the filesystem restore succeeds but journal writing
       fails, and that the state can be reconciled (part of the shared
