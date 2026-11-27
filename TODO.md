@@ -138,6 +138,24 @@ tests together with the fix rather than maintaining parallel descriptions.
       routed anywhere for now. Certificate/key extensions remain in the fallback
       category. `.key` is classified by content: private-key markers keep the file
       in place, while non-private Keynote `.key` documents are routed to Dokumente.
+- [ ] Add dedicated GUI editing for classification rules (this covers the
+      "category and rule management" workflow in the GUI-completion checklist
+      under Desktop application readiness). The editor must support:
+      - ordered rules and changing rule priority;
+      - rule name and destination subfolder;
+      - extension matches, filename keywords, folder keywords, and PDF text
+        keywords;
+      - optional Finder tag colors;
+      - adding, duplicating, disabling, deleting, and reordering rules;
+      - validation of subdirectory names and rule values before saving;
+      - preserving untouched TOML comments and unknown/advanced fields;
+      - previewing matched files before and after rule changes;
+      - saving atomically and restarting the LaunchAgent only after validation
+        succeeds.
+- [ ] Define and test GUI behavior for rule changes in already organized files.
+      Changing classification rules must continue to affect new files only by
+      default; deliberately entering reorganize/preview mode must show exact
+      moves, collisions, and undo implications first.
 
 ## Target folder maintenance
 
@@ -171,14 +189,16 @@ tests together with the fix rather than maintaining parallel descriptions.
 
 - [ ] Clickable notifications that reveal the moved file in Finder. The current
       osascript display notification approach cannot handle clicks at all.
-      Plan: a small Swift helper (~60 lines, UNUserNotificationCenter + delegate
-      calling NSWorkspace.shared.activateFileViewerSelecting, which opens
-      Finder and selects the file), compiled at build time via build.rs +
-      swiftc on macOS and called like osascript is today. No external user
-      dependency (unlike shelling out to terminal-notifier). Caveats: ad-hoc
-      signing of the helper (ties into the code-signing / notarization item
-      below), and one short-lived helper process per notification until it is
-      dismissed or clicked.
+      Replace it with a native macOS notification implementation that preserves
+      the destination path for duplicate, move, folder, and reorganize actions.
+      Include a fallback to the current osascript notification while native
+      notification support or permissions are unavailable. Clicking must open
+      Finder and select the destination when it still exists; stale, moved, or
+      deleted destinations must fail safely and explain the state.
+      Package and sign the notification helper as part of the desktop application
+      so it retains a stable identity across LaunchAgent and GUI updates.
+      Verify permission prompts, notification dismissal, activation, stale
+      paths, LaunchAgent delivery, non-macOS fallback, and ad-hoc/local builds.
 
 ## Builds and releases
 
@@ -215,7 +235,34 @@ immediately. See LONGTERM-GOALS.md for product direction.
 - [x] Add an experimental native desktop settings-style interface for status, preview,
       recent activity, undo, target-folder icons, TOML editing, and saving
       configuration to the LaunchAgent.
-- [ ] Decide the packaging and distribution shape for the native app, including
-      LaunchAgent lifecycle, permissions, code signing, and notarization.
-- [ ] Preserve a fully usable CLI and configuration-file workflow; a GUI must
-      be an additional interface, not a prerequisite for using the core.
+- [ ] Next GUI increment before the rule editor (both need only existing core
+      operations, no new FFI surface):
+      - a LaunchAgent status row (agent running/not running via `launchctl list`)
+        as the first step toward full launch-agent controls;
+      - reorganize preview and execution buttons wired to the existing
+        `--reorganize`/dry-run core operations, showing the planned moves in the
+        Preview card (the full collision/undo previews remain part of the
+        GUI-completion checklist below).
+- [ ] Complete the experimental GUI with the following workflows:
+      - launch-agent status, install/load, restart, stop, and uninstall controls;
+      - clear macOS permission diagnostics and direct links or guidance for
+        Files and Folders and Full Disk Access;
+      - category and rule management beyond raw TOML editing, including
+        category renaming and rule priority;
+      - inspectable operation history with filtering and direct undo/recovery
+        actions;
+      - reorganize preview and execution with collision and undo previews;
+      - diagnostics for missing watched folders, pending interrupted operations,
+        malformed journal entries, and index health;
+      - explicit unsaved-change, validation-error, save-success, and
+        LaunchAgent-restart states;
+      - stable window behavior across relaunches, including config-path and
+        window-size persistence;
+      - accessibility verification, keyboard navigation, VoiceOver labels,
+        Dynamic Type-compatible text sizing, and reduced-motion behavior.
+- [ ] Package a complete macOS application with its own stable bundle
+      identifier, signed executable and bundle, notarization, and an installer or
+      release archive that keeps LaunchAgent permissions stable across updates.
+- [ ] Continue supporting the CLI and direct TOML workflow as first-class
+      interfaces; every GUI save must produce configuration that the CLI can
+      load without migration or fallback behavior.
