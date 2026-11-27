@@ -93,11 +93,6 @@ Set the target folder's Finder icon to the 1folder monochrome icon:
 onefolder --set-target-icon
 ```
 
-Create a Finder alias carrying the 1folder icon for use in the Favorites sidebar:
-
-```sh
-onefolder --create-sidebar-alias
-```
 
 # 5. Run continuously in the background
 onefolder

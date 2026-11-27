@@ -33,11 +33,6 @@ struct Cli {
         help = "Set the target folder icon to the 1folder monochrome icon"
     )]
     set_target_icon: bool,
-    #[arg(
-        long,
-        help = "Create a Finder alias carrying the 1folder icon for the Favorites sidebar"
-    )]
-    create_sidebar_alias: bool,
     #[arg(long, help = "Write the default configuration and exit")]
     init_config: bool,
     #[arg(
@@ -98,18 +93,6 @@ fn main() -> Result<()> {
             i18n::fmt(
                 i18n::Messages::get(config.general.language).target_icon_set,
                 &[&summary.target_dir.display()],
-            )
-        );
-        return Ok(());
-    }
-    if cli.create_sidebar_alias {
-        let summary = core::create_finder_sidebar_alias(&config)
-            .with_context(|| "Could not create the Finder sidebar alias")?;
-        println!(
-            "{}",
-            i18n::fmt(
-                i18n::Messages::get(config.general.language).sidebar_alias_created,
-                &[&summary.alias.display()],
             )
         );
         return Ok(());

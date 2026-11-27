@@ -41,7 +41,6 @@ pub struct Messages {
     pub journal_truncated: &'static str,
     pub target_icon_set: &'static str,
     pub target_icon_failed: &'static str,
-    pub sidebar_alias_created: &'static str,
     #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     pub tags_failed: &'static str,
 }
@@ -78,7 +77,6 @@ pub const EN: Messages = Messages {
     journal_truncated: "Truncated final journal record at line {}: {}",
     target_icon_set: "Target folder icon set: {}",
     target_icon_failed: "Could not set target folder icon: {}",
-    sidebar_alias_created: "Finder sidebar alias created: {}",
     tags_failed: "Could not set Finder tags on {}: {}",
 };
 
@@ -114,7 +112,6 @@ pub const DE: Messages = Messages {
     journal_truncated: "Abgeschnittener letzter Journaleintrag in Zeile {}: {}",
     target_icon_set: "Symbol des Zielordners gesetzt: {}",
     target_icon_failed: "Symbol des Zielordners konnte nicht gesetzt werden: {}",
-    sidebar_alias_created: "Finder-Seitenleisten-Alias erstellt: {}",
     tags_failed: "Finder-Tags konnten nicht gesetzt werden für {}: {}",
 };
 

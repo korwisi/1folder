@@ -24,8 +24,6 @@ func onefolder_undo_last(_ path: UnsafePointer<CChar>, _ dryRun: Int32) -> Onefo
 @_silgen_name("onefolder_set_target_icon")
 func onefolder_set_target_icon(_ path: UnsafePointer<CChar>) -> OnefolderResult
 
-@_silgen_name("onefolder_create_sidebar_alias")
-func onefolder_create_sidebar_alias(_ path: UnsafePointer<CChar>) -> OnefolderResult
 
 @_silgen_name("onefolder_free_string")
 func onefolder_free_string(_ value: UnsafeMutablePointer<CChar>)
@@ -110,9 +108,6 @@ struct TargetIconSummary: Decodable {
     let target_dir: String
 }
 
-struct SidebarAliasSummary: Decodable {
-    let alias: String
-}
 
 @MainActor
 final class DesktopController: NSObject {
@@ -269,32 +264,6 @@ final class DesktopController: NSObject {
         refresh()
     }
 
-    @objc func createSidebarAlias() {
-        let result: CoreResult<SidebarAliasSummary> = configPath.withCString { pointer in
-            let cResult = onefolder_create_sidebar_alias(pointer)
-            defer {
-                if let json = cResult.json { onefolder_free_string(json) }
-                if let error = cResult.error { onefolder_free_string(error) }
-            }
-            if let errorPointer = cResult.error,
-               let error = String(validatingCString: errorPointer),
-               !error.isEmpty {
-                return CoreResult(value: nil, error: error)
-            }
-            guard let jsonPointer = cResult.json,
-                  let json = String(validatingCString: jsonPointer),
-                  let data = json.data(using: .utf8),
-                  let value = try? JSONDecoder().decode(SidebarAliasSummary.self, from: data) else {
-                return CoreResult(value: nil, error: "The Rust core returned no data")
-            }
-            return CoreResult(value: value, error: nil)
-        }
-        if let error = result.error {
-            messageField.stringValue = error
-        } else {
-            messageField.stringValue = "Created Finder sidebar alias: \(result.value?.alias ?? "")"
-        }
-    }
 }
 
 @MainActor
@@ -325,7 +294,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSButton(title: "Preview", target: controller, action: #selector(DesktopController.previewOnce)),
             NSButton(title: "Run once", target: controller, action: #selector(DesktopController.runOnce)),
             NSButton(title: "Set target icon", target: controller, action: #selector(DesktopController.setTargetIcon)),
-            NSButton(title: "Create sidebar alias", target: controller, action: #selector(DesktopController.createSidebarAlias)),
             NSButton(title: "Undo last", target: controller, action: #selector(DesktopController.undoLast))
         ])
         buttonRow.orientation = .horizontal
