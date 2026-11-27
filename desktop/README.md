@@ -29,4 +29,6 @@ The prototype loads the default configuration from
 `~/Library/Application Support/1folder/config.toml`. It can show status,
 preview a one-shot run, run once, show recent journal activity, and undo the
 last operation. The **Set target icon** action applies the monochrome
-1folder icon to the configured target folder.
+1folder icon to the configured target folder. The **Create sidebar alias**
+action creates an alias that can be dragged into Finder Favorites with the
+1folder icon.

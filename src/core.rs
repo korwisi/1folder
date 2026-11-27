@@ -95,6 +95,11 @@ pub struct TargetIconSummary {
     pub target_dir: PathBuf,
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct SidebarAliasSummary {
+    pub alias: PathBuf,
+}
+
 pub fn load_config(path: &Path) -> Result<Config> {
     Config::load(path)
 }
@@ -131,6 +136,11 @@ pub fn set_target_folder_icon(config: &Config) -> Result<TargetIconSummary> {
     Ok(TargetIconSummary {
         target_dir: config.target_dir.clone(),
     })
+}
+
+pub fn create_finder_sidebar_alias(config: &Config) -> Result<SidebarAliasSummary> {
+    let alias = crate::icon::create_finder_sidebar_alias(&config.target_dir)?;
+    Ok(SidebarAliasSummary { alias })
 }
 
 pub fn history(config: &Config) -> Result<ActivitySummary> {
