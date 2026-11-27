@@ -107,6 +107,8 @@ tests together with the fix rather than maintaining parallel descriptions.
       failure-safe").
 - [x] Hash-index invalidation when a file is replaced by another file of the
       same size with a modification time that falls within the same second.
+- [x] Deleted target files are removed from the hash index and are not reported
+      as duplicates if the same content is later placed back in a source folder.
 - [x] Undo behavior when the filesystem restore succeeds but journal writing
       fails, and that the state can be reconciled (part of the shared
       recovery-state model above; cover both the move and the undo direction).
