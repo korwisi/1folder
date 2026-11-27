@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Default document classification now includes `.docm`, `.potx`, and `.pub`.
+- Default 3D classification now includes Blender `.blend` and FBX `.fbx` files.
 
 ## [0.5.0] - 2026-11-24
 

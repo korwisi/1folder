@@ -108,7 +108,7 @@ extensions = ["jpg", "jpeg", "png", "heic", "gif", "webp", "tiff", "svg", "cr2",
 [[rules]]
 name = "3d-druck"
 subdir = "3D-Druck"
-extensions = ["stl", "scad", "3mf", "gcode", "curaprofile", "ipt", "f3d", "obj", "step", "stp"]
+extensions = ["stl", "scad", "3mf", "gcode", "curaprofile", "ipt", "f3d", "obj", "step", "stp", "blend", "fbx"]
 
 [[rules]]
 name = "videos"

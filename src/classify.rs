@@ -259,6 +259,13 @@ mod tests {
     }
 
     #[test]
+    fn modeling_formats_match_3d_category() {
+        let config = test_config();
+        assert_eq!(classify(&config, &path("scene.blend"), None), "3D-Druck");
+        assert_eq!(classify(&config, &path("character.fbx"), None), "3D-Druck");
+    }
+
+    #[test]
     fn filename_keyword_rule_matches() {
         let config = test_config();
         assert_eq!(
