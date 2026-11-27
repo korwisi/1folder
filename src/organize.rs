@@ -59,6 +59,7 @@ pub enum Action {
     KeptBoth,
     MovedToDuplicates,
     Reclassified,
+    CategoryRenamed,
 }
 
 impl Action {
@@ -70,6 +71,7 @@ impl Action {
             Action::KeptBoth => "kept_both",
             Action::MovedToDuplicates => "moved_to_duplicates",
             Action::Reclassified => "reclassified",
+            Action::CategoryRenamed => "category_renamed",
         }
     }
 }

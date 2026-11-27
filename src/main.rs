@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use std::path::PathBuf;
 
+mod category;
 mod classify;
 mod config;
 mod hash;
@@ -33,6 +34,13 @@ struct Cli {
         help = "Re-apply the current rules to files already in the target folder"
     )]
     reorganize: bool,
+    #[arg(
+        long,
+        value_names = ["OLD", "NEW"],
+        num_args = 2,
+        help = "Rename a category in the config and target folder"
+    )]
+    rename_category: Option<Vec<String>>,
     #[arg(long, help = "Only show what would happen, change nothing")]
     dry_run: bool,
     #[arg(long, help = "Write the default configuration and exit")]
@@ -95,6 +103,9 @@ fn main() -> Result<()> {
         return run_undo(&config, &cli, undo_arg);
     }
 
+    if let Some(names) = &cli.rename_category {
+        return category::rename(&config, &config_path, &names[0], &names[1], cli.dry_run);
+    }
     if cli.reorganize {
         return reorganize::run(&config, cli.dry_run, cli.report.as_deref());
     }
@@ -111,10 +122,7 @@ fn run_undo(config: &config::Config, cli: &Cli, undo_arg: &str) -> Result<()> {
     let all = undo_arg.eq_ignore_ascii_case("all");
     let count = undo_arg.parse::<usize>().ok();
     if !all && count.is_none() {
-        anyhow::bail!(
-            "{}",
-            i18n::fmt(m.undo_invalid_target, &[&undo_arg])
-        );
+        anyhow::bail!("{}", i18n::fmt(m.undo_invalid_target, &[&undo_arg]));
     }
     let within = match &cli.within {
         Some(raw) => match undo::parse_duration(raw) {
@@ -145,9 +153,9 @@ fn init_config(path: Option<PathBuf>) -> Result<()> {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("Directory not creatable: {}", parent.display()))?;
     }
-    
+
     let mut config_text = config::DEFAULT_CONFIG.to_string();
-    
+
     eprintln!("Choose your preferred language:");
     eprintln!("  1) German (de) - default");
     eprintln!("  2) English (en)");
@@ -156,29 +164,25 @@ fn init_config(path: Option<PathBuf>) -> Result<()> {
     let stdin = std::io::stdin();
     let mut input = String::new();
     stdin.lock().read_line(&mut input)?;
-    
+
     let use_english = matches!(input.trim(), "2");
     if use_english {
-        config_text = config_text.replace(
-            "language = \"de\"",
-            "language = \"en\""
-        ).replace(
-            "\"Duplikate\"",
-            "\"Duplicates\""
-        ).replace(
-            "\"Sammlungen\"",
-            "\"Collections\""
-        ).replace(
-            "\"Sonstiges\"",
-            "\"Miscellaneous\""
-        );
+        config_text = config_text
+            .replace("language = \"de\"", "language = \"en\"")
+            .replace("\"Duplikate\"", "\"Duplicates\"")
+            .replace("\"Sammlungen\"", "\"Collections\"")
+            .replace("\"Sonstiges\"", "\"Miscellaneous\"");
     }
-    
+
     std::fs::write(&path, config_text)
         .with_context(|| format!("Config not writable: {}", path.display()))?;
-    
+
     let lang = if use_english { "English" } else { "German" };
-    println!("Default config written: {} (language: {})", path.display(), lang);
+    println!(
+        "Default config written: {} (language: {})",
+        path.display(),
+        lang
+    );
     println!("Next: edit the config file to adjust target_dir, watch.dirs, and rules");
     Ok(())
 }

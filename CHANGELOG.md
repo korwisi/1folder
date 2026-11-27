@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   distinguished by private-key content markers so Keynote presentations are still
   classified as documents.
 - Added an ignored direct large-target hash-index refresh benchmark.
+- Added `--rename-category OLD NEW` for end-to-end category renaming.
+- `--reorganize` now recursively reclassifies nested files while preserving
+  their relative subdirectories.
 
 ## [0.5.0] - 2026-11-24
 

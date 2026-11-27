@@ -209,7 +209,7 @@ impl Config {
     }
 }
 
-fn valid_subdirectory_name(value: &str) -> bool {
+pub fn valid_subdirectory_name(value: &str) -> bool {
     if value.is_empty() || value == "." || value == ".." {
         return false;
     }

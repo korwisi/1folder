@@ -155,7 +155,7 @@ tests together with the fix rather than maintaining parallel descriptions.
       command, then consider refreshing once per batch or using incremental updates.
       Latest direct benchmark: 100 files cold 3.5 ms / warm 0.38 ms; 1,000 files
       cold 22.3 ms / warm 3.6 ms; 5,000 files cold 117.3 ms / warm 19.1 ms.
-- [ ] onefolder rename-category <old> <new>: rename a category end-to-end —
+- [x] onefolder rename-category <old> <new>: rename a category end-to-end —
       update every config reference (rules[].subdir, fallback_subdir,
       folders.subdir, dedupe.duplicates_subdir) in place while preserving
       comments, rename the folder in the target (with collision validation),
@@ -163,7 +163,7 @@ tests together with the fix rather than maintaining parallel descriptions.
       action, and remind the user to restart the agent. An explicit command,
       not automatic detection of manual renames; see the "Renaming categories"
       section in the README for the manual procedure this would automate.
-- [ ] --reorganize (shipped): recursively re-classify files nested deeper than
+- [x] --reorganize (shipped): recursively re-classify files nested deeper than
       one category level (currently skipped, mostly preserve_source_paths =
       "structure"), and offer a category-rename mode that reuses it.
 

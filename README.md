@@ -195,23 +195,17 @@ Loose files directly in a watched folder are sorted per file as before. Set
 
 ### Renaming categories
 
-The target folder is user-owned: 1folder never re-sorts, renames or "fixes"
-anything inside it on its own — the only exception is the explicit
-`--reorganize` flag ([Reorganizing the target folder](#reorganizing-the-target-folder)).
-You can restructure it freely at any time — even while
-the agent is running. Renaming a category folder, however, does not update the
-config, so new files would keep going to the old name. To rename a category
-safely:
+Quit the background agent, then rename a category end-to-end:
 
-1. Quit the background agent (`launchctl unload`).
-2. Update the category name in `config.toml` wherever it is referenced:
-   `rules[].subdir`, `fallback_subdir`, `folders.subdir`,
-   `dedupe.duplicates_subdir`.
-3. Rename the folder inside the target: `mv <target>/Bilder <target>/Photos`.
-4. Retag the moved files: they carry the category name as a Finder tag, so
-   search for the old tag (`tag:Bilder`), select everything and assign the new
-   tag (removing the old one keeps Spotlight and Smart Folders consistent).
-5. Start the agent again.
+```sh
+onefolder --rename-category Bilder Photos --dry-run
+onefolder --rename-category Bilder Photos
+```
+
+The command validates the names, refuses destination collisions, updates
+`rules[].subdir`, `fallback_subdir`, `folders.subdir`, and
+`dedupe.duplicates_subdir` references in `config.toml`, renames the category
+folder, retags contained files on macOS, and records the action in the journal.
 
 ## Reorganizing the target folder
 
@@ -230,7 +224,8 @@ anything whose category changed. Stray files in the target root are sorted too,
 name collisions get a ` (2)` suffix, emptied category folders are removed, and
 Finder tags are re-applied. The `Duplikate` folder is never touched, and nested
 paths deeper than one level inside a category (e.g. from
-`preserve_source_paths = "structure"`) are left alone.
+`preserve_source_paths = "structure"`) are reclassified too while preserving
+their relative subdirectories.
 
 Every move is journaled as `reclassified`, so it behaves like any other move:
 

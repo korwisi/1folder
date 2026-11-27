@@ -12,6 +12,7 @@ const UNDOABLE: &[&str] = &[
     "kept_both",
     "moved_to_duplicates",
     "reclassified",
+    "category_renamed",
 ];
 
 pub struct UndoSelection {
