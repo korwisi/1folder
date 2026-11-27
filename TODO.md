@@ -112,7 +112,7 @@ tests together with the fix rather than maintaining parallel descriptions.
       recovery-state model above; cover both the move and the undo direction).
 - [x] A move whose journal entry cannot be appended; verify the operation remains
       detectable and recoverable per the recovery-state model above.
-- [ ] Stability timeout while a watched file is still changing; verify it is
+- [x] Stability timeout while a watched file is still changing; verify it is
       not processed prematurely, stays in place in `--once` mode with a visible
       error/exit status, and remains eligible for retry in watch mode.
 - [ ] Concurrent changes to watched files, large files and directories, stale

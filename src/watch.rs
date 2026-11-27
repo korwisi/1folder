@@ -524,4 +524,34 @@ mod tests {
             .to_string()
             .contains("watched entries could not be processed"));
     }
+
+    #[test]
+    fn once_mode_keeps_changing_file_and_returns_error() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut config: Config = toml::from_str(crate::config::DEFAULT_CONFIG).unwrap();
+        config.target_dir = tmp.path().join("target");
+        config.watch.dirs = vec![tmp.path().join("Desktop")];
+        config.watch.stability_wait_ms = 150;
+        config.notify.enabled = false;
+        let watched = tmp.path().join("Desktop");
+        std::fs::create_dir_all(&watched).unwrap();
+        let path = watched.join("changing.bin");
+        std::fs::write(&path, b"a").unwrap();
+
+        let writer_path = path.clone();
+        let writer = std::thread::spawn(move || {
+            for byte in b"bcdefghij" {
+                std::fs::write(&writer_path, [*byte]).unwrap();
+                std::thread::sleep(Duration::from_millis(20));
+            }
+        });
+
+        let error = run_once(&config, false, None).unwrap_err();
+        writer.join().unwrap();
+        assert!(error
+            .to_string()
+            .contains("watched entries could not be processed"));
+        assert!(path.exists());
+        assert!(!config.target_dir.exists());
+    }
 }
