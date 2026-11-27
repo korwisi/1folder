@@ -11,6 +11,16 @@ use std::time::SystemTime;
 pub(crate) struct CachedFile {
     pub size: u64,
     pub modified: i64,
+    #[serde(default)]
+    pub modified_nanos: u32,
+    #[serde(default)]
+    pub device: Option<u64>,
+    #[serde(default)]
+    pub inode: Option<u64>,
+    #[serde(default)]
+    pub changed: Option<i64>,
+    #[serde(default)]
+    pub changed_nanos: Option<u32>,
     pub hash: String,
 }
 
@@ -63,16 +73,47 @@ impl PersistentIndex {
             .collect()
     }
 
-    fn mtime_to_i64(mtime: SystemTime) -> i64 {
-        mtime
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0)
+    fn time_to_parts(time: SystemTime) -> (i64, u32) {
+        match time.duration_since(SystemTime::UNIX_EPOCH) {
+            Ok(duration) => (duration.as_secs() as i64, duration.subsec_nanos()),
+            Err(error) => {
+                let duration = error.duration();
+                if duration.subsec_nanos() == 0 {
+                    (-(duration.as_secs() as i64), 0)
+                } else {
+                    (
+                        -(duration.as_secs() as i64) - 1,
+                        1_000_000_000 - duration.subsec_nanos(),
+                    )
+                }
+            }
+        }
     }
 
     #[allow(dead_code)]
-    fn system_time_from_i64(ts: i64) -> SystemTime {
-        SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(ts as u64)
+    fn system_time_from_parts(ts: i64, nanos: u32) -> SystemTime {
+        if ts >= 0 {
+            SystemTime::UNIX_EPOCH + std::time::Duration::new(ts as u64, nanos)
+        } else {
+            SystemTime::UNIX_EPOCH - std::time::Duration::from_secs((-ts) as u64)
+                + std::time::Duration::from_nanos(nanos as u64)
+        }
+    }
+
+    #[cfg(unix)]
+    fn unix_identity(meta: &fs::Metadata) -> (Option<u64>, Option<u64>, Option<i64>, Option<u32>) {
+        use std::os::unix::fs::MetadataExt;
+        (
+            Some(meta.dev()),
+            Some(meta.ino()),
+            Some(meta.ctime()),
+            Some(meta.ctime_nsec() as u32),
+        )
+    }
+
+    #[cfg(not(unix))]
+    fn unix_identity(_meta: &fs::Metadata) -> (Option<u64>, Option<u64>, Option<i64>, Option<u32>) {
+        (None, None, None, None)
     }
 
     /// Refresh the index against the target folder. Reconciles missing files,
@@ -110,10 +151,19 @@ impl PersistentIndex {
 
             let size = meta.len();
             let mtime = meta.modified().ok();
-            let mtime_i64 = mtime.map(Self::mtime_to_i64).unwrap_or(0);
+            let (mtime_secs, mtime_nanos) = mtime.map(Self::time_to_parts).unwrap_or((0, 0));
+            let (device, inode, changed, changed_nanos) = Self::unix_identity(&meta);
 
             let hash = match self.cache.get(&path) {
-                Some(cached) if cached.size == size && cached.modified == mtime_i64 => {
+                Some(cached)
+                    if cached.size == size
+                        && cached.modified == mtime_secs
+                        && cached.modified_nanos == mtime_nanos
+                        && cached.device == device
+                        && cached.inode == inode
+                        && cached.changed == changed
+                        && cached.changed_nanos == changed_nanos =>
+                {
                     cached.hash.clone()
                 }
                 _ => match sha256_file(&path) {
@@ -127,7 +177,12 @@ impl PersistentIndex {
                 path,
                 CachedFile {
                     size,
-                    modified: mtime_i64,
+                    modified: mtime_secs,
+                    modified_nanos: mtime_nanos,
+                    device,
+                    inode,
+                    changed,
+                    changed_nanos,
                     hash,
                 },
             );
@@ -268,6 +323,24 @@ mod tests {
         fs::write(&file_a, b"hello world").unwrap();
 
         idx.refresh(dir.path()).unwrap();
+        assert!(idx.dirty);
+    }
+
+    #[test]
+    fn refresh_rehashes_same_size_replacement() {
+        let dir = tempfile::tempdir().unwrap();
+        let file_a = dir.path().join("a.txt");
+        fs::write(&file_a, b"hello").unwrap();
+
+        let mut idx = PersistentIndex::load_or_create(dir.path()).unwrap();
+        idx.refresh(dir.path()).unwrap();
+        let first_hash = idx.cache.get(&file_a).unwrap().hash.clone();
+
+        fs::write(&file_a, b"world").unwrap();
+
+        idx.refresh(dir.path()).unwrap();
+        let replacement_hash = idx.cache.get(&file_a).unwrap().hash.clone();
+        assert_ne!(first_hash, replacement_hash);
         assert!(idx.dirty);
     }
 

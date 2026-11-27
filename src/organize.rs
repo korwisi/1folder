@@ -85,7 +85,7 @@ pub struct Outcome {
 }
 
 /// Content-hash index over the target folder. Detects duplicates regardless of
-/// file names; unchanged files (same size + mtime) keep their cached hash.
+/// file names; unchanged files (same size + precise mtime/inode/ctime) keep their cached hash.
 /// Persists to disk so startup and each incoming file do not require rehashing
 /// the entire target folder.
 pub struct HashIndex {

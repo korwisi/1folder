@@ -45,7 +45,7 @@ tables in `src/i18n.rs`.
       to its final destination, and only then remove the source. Clean up
       temporary files on failure and preserve enough state to recover from
       interruptions. Apply equivalent care to directory moves.
-- [ ] Increase hash-index metadata precision. The current metadata key uses
+- [x] Increase hash-index metadata precision. The current metadata key uses
       file size and modification time in whole seconds. Preserve sub-second
       modification-time precision where available and consider additional file
       identity metadata so a same-size replacement within one second cannot
