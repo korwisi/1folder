@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--reorganize` now recursively reclassifies nested files while preserving
   their relative subdirectories.
 
+### Release verification
+- GitHub Actions run 45983505024 built and uploaded
+  `onefolder-v0.6.0-macos-universal.tar.gz`. The downloaded universal binary
+  contains both `x86_64` and `arm64`, was installed as
+  `/usr/local/bin/onefolder`, reports `1folder 0.6.0`, and restarted successfully
+  under the local LaunchAgent.
+
 ## [0.5.0] - 2026-11-24
 
 ### Added

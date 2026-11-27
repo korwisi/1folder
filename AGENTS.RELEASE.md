@@ -9,12 +9,15 @@ Handoff notes for the release automation work (continuation context; see
 - [x] First real run: verified with tag `v0.5.0` (run 45422234588). The
       workflow built, packaged, created the GitHub Release, and uploaded
       `onefolder-v0.5.0-macos-universal.tar.gz`.
+- [x] `v0.6.0` run 45983505024 was verified end to end. The universal archive
+      was uploaded, downloaded, extracted, installed, and confirmed to contain
+      both `x86_64` and `arm64` support.
 - [ ] Code signing / notarization: separate open TODO in `TODO.md`.
 
 ## How the workflow works
 
 - Trigger: `push: tags: ["v*"]` — no manual dispatch. Tags must be
-  `vMAJOR.MINOR.PATCH` (current version at time of writing: 0.5.0).
+  `vMAJOR.MINOR.PATCH` (current version at time of writing: 0.6.0).
 - Single job on `macos-latest` (ARM runner; irrelevant since both architectures
   are built explicitly).
 - Steps:
@@ -53,6 +56,15 @@ Handoff notes for the release automation work (continuation context; see
 - Downloaded archive extracted and installed as `/usr/local/bin/onefolder`.
 - Installed executable reports `1folder 0.5.0`.
 - LaunchAgent `de.korwisi.onefolder` was restarted after installation.
+
+## Verified `v0.6.0` release
+
+- Workflow run: 45983505024, successful.
+- Asset: `onefolder-v0.6.0-macos-universal.tar.gz`.
+- Universal binary verified with `lipo` as `x86_64 arm64`.
+- Downloaded archive extracted and installed as `/usr/local/bin/onefolder`.
+- Installed executable reports `1folder 0.6.0`.
+- Local LaunchAgent `de.korwisi.onefolder` was restarted and is running.
 
 ## Post-install release update
 
