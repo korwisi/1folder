@@ -1,7 +1,8 @@
 use crate::config::{Config, FolderMode};
 use crate::organize::{self, Action, HashIndex, Outcome};
 use crate::report;
-use anyhow::Result;
+use crate::undo::{self, UndoSelection};
+use anyhow::{Context, Result};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
@@ -53,8 +54,115 @@ pub struct PreviewSummary {
     pub items_checked: usize,
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ActivityRecord {
+    pub id: Option<String>,
+    pub timestamp: String,
+    pub action: String,
+    pub src: PathBuf,
+    pub dst: PathBuf,
+    pub category: Option<String>,
+    pub sha256: Option<String>,
+    pub undo_of: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ActivitySummary {
+    pub records: Vec<ActivityRecord>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct CoreStatus {
+    pub target_dir: PathBuf,
+    pub target_exists: bool,
+    pub watched_dirs: Vec<PathBuf>,
+    pub missing_watched_dirs: Vec<PathBuf>,
+    pub pending_operation: bool,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct RunSummary {
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct UndoSummary {
+    pub restored: usize,
+}
+
 pub fn load_config(path: &Path) -> Result<Config> {
     Config::load(path)
+}
+
+pub fn status(config: &Config) -> Result<CoreStatus> {
+    let missing_watched_dirs = config
+        .watch
+        .dirs
+        .iter()
+        .filter(|dir| !dir.is_dir())
+        .cloned()
+        .collect();
+    let pending_operation = config.target_dir.join(".1folder-operation.json").is_file();
+    Ok(CoreStatus {
+        target_dir: config.target_dir.clone(),
+        target_exists: config.target_dir.is_dir(),
+        watched_dirs: config.watch.dirs.clone(),
+        missing_watched_dirs,
+        pending_operation,
+    })
+}
+
+pub fn run_once(config: &Config, dry_run: bool, report_path: Option<&Path>) -> Result<RunSummary> {
+    crate::watch::run_once(config, dry_run, report_path)?;
+    Ok(RunSummary { dry_run })
+}
+
+pub fn reconcile(config: &Config) -> Result<()> {
+    crate::operation::reconcile(config)
+}
+
+pub fn history(config: &Config) -> Result<ActivitySummary> {
+    let records = crate::journal::read(&config.journal_path()).with_context(|| {
+        format!(
+            "Activity history could not be read: {}",
+            config.journal_path().display()
+        )
+    })?;
+    Ok(ActivitySummary {
+        records: records
+            .into_iter()
+            .map(|record| ActivityRecord {
+                id: record.id,
+                timestamp: record.ts,
+                action: record.action,
+                src: PathBuf::from(record.src),
+                dst: PathBuf::from(record.dst),
+                category: record.category,
+                sha256: record.sha256,
+                undo_of: record.undo_of,
+            })
+            .collect(),
+    })
+}
+
+pub fn undo(config: &Config, dry_run: bool, selection: &UndoSelection) -> Result<UndoSummary> {
+    Ok(UndoSummary {
+        restored: undo::run(config, dry_run, selection)?,
+    })
+}
+
+pub fn reorganize(config: &Config, dry_run: bool, report_path: Option<&Path>) -> Result<()> {
+    crate::reorganize::run(config, dry_run, report_path)
+}
+
+pub fn rename_category(
+    config: &Config,
+    config_path: &Path,
+    old: &str,
+    new: &str,
+    dry_run: bool,
+) -> Result<()> {
+    crate::category::rename(config, config_path, old, new, dry_run)
 }
 
 pub fn preview(config: &Config, report_path: Option<&Path>) -> Result<PreviewSummary> {
@@ -196,12 +304,54 @@ extensions = ["jpg"]
     fn preview_reports_missing_watched_directory() {
         let tmp = tempfile::tempdir().unwrap();
         let (config, watched) = preview_config(&tmp);
-        fs::remove_dir(watched).unwrap();
+        fs::remove_dir(&watched).unwrap();
 
         let summary = preview(&config, None).unwrap();
 
         assert_eq!(summary.operations.len(), 0);
         assert_eq!(summary.issues.len(), 1);
         assert!(summary.issues[0].message.contains("missing"));
+    }
+
+    #[test]
+    fn status_reports_missing_watched_directories() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (config, watched) = preview_config(&tmp);
+        fs::remove_dir(&watched).unwrap();
+
+        let status = status(&config).unwrap();
+
+        assert_eq!(status.missing_watched_dirs, vec![watched]);
+        assert!(!status.pending_operation);
+    }
+
+    #[test]
+    fn history_returns_ui_neutral_journal_records() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (config, _) = preview_config(&tmp);
+        fs::create_dir_all(&config.target_dir).unwrap();
+        fs::write(
+            config.journal_path(),
+            format!(
+                "{}\n",
+                serde_json::json!({
+                    "ts": "2026-11-27T15:00:00+01:00",
+                    "action": "moved",
+                    "src": "/tmp/photo.jpg",
+                    "dst": "/tmp/target/Images/photo.jpg",
+                    "category": "Images",
+                    "sha256": "abc",
+                    "id": "record-id"
+                })
+            ),
+        )
+        .unwrap();
+
+        let history = history(&config).unwrap();
+
+        assert_eq!(history.records.len(), 1);
+        assert_eq!(history.records[0].action, "moved");
+        assert_eq!(history.records[0].category.as_deref(), Some("Images"));
+        assert_eq!(history.records[0].id.as_deref(), Some("record-id"));
     }
 }

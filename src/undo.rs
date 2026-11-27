@@ -36,7 +36,7 @@ pub fn parse_duration(raw: &str) -> Option<Duration> {
     Some(Duration::from_secs(secs * multiplier))
 }
 
-pub fn run(config: &Config, dry_run: bool, selection: &UndoSelection) -> Result<()> {
+pub fn run(config: &Config, dry_run: bool, selection: &UndoSelection) -> Result<usize> {
     let m = Messages::get(config.general.language);
     let records = match journal::read(&config.journal_path()) {
         Ok(records) => records,
@@ -68,7 +68,7 @@ pub fn run(config: &Config, dry_run: bool, selection: &UndoSelection) -> Result<
     }
     if candidates.is_empty() {
         log::info!("{}", m.undo_nothing);
-        return Ok(());
+        return Ok(0);
     }
     let mut restored = 0usize;
     for record in &candidates {
@@ -77,7 +77,7 @@ pub fn run(config: &Config, dry_run: bool, selection: &UndoSelection) -> Result<
         }
     }
     log::info!("{}", crate::i18n::fmt(m.undo_done, &[&restored]));
-    Ok(())
+    Ok(restored)
 }
 
 fn within_selection(record: &JournalRecord, within: Option<Duration>) -> bool {

@@ -84,8 +84,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let file = tmp.path().join("a.txt");
         std::fs::write(&file, b"x").unwrap();
-        let config: TagsConfig =
-            toml::from_str("enabled = true\nroot_tag = \"1folder\"").unwrap();
+        let config: TagsConfig = toml::from_str("enabled = true\nroot_tag = \"1folder\"").unwrap();
         apply(&config, Language::En, &file, "Dokumente", Some(4));
         apply(&config, Language::De, &file, "", None);
         let disabled: TagsConfig = toml::from_str("enabled = false").unwrap();

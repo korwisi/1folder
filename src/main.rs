@@ -146,7 +146,8 @@ fn run_undo(config: &config::Config, cli: &Cli, undo_arg: &str) -> Result<()> {
         within,
         src_prefix: cli.src_prefix.as_deref().map(config::expand_tilde),
     };
-    undo::run(config, cli.dry_run, &selection)
+    undo::run(config, cli.dry_run, &selection)?;
+    Ok(())
 }
 
 fn init_config(path: Option<PathBuf>) -> Result<()> {

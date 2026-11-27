@@ -204,10 +204,10 @@ immediately. See LONGTERM-GOALS.md for product direction.
 - [x] Extract the reusable Rust modules into a library target and provide a
       UI-neutral preview/dry-run facade in `src/core.rs`; the CLI now uses this
       facade for `--once --dry-run`.
-- [ ] Before choosing a GUI framework, define the remaining stable interface between
+- [x] Before choosing a GUI framework, define the remaining stable interface between
       the core and its clients (configuration, preview/dry-run, execution
       status, activity history, and undo).
-- [ ] Add UI-neutral core operations for execution status, one-shot execution,
+- [x] Add UI-neutral core operations for execution status, one-shot execution,
       activity history, reconciliation, category management, and undo.
 - [ ] Build a minimal native macOS prototype against the core API. Use it to
       validate Rust/Swift interop and the first usable workflow before adding

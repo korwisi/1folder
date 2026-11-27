@@ -81,6 +81,10 @@ pub struct JournalRecord {
     pub src: String,
     pub dst: String,
     #[serde(default)]
+    pub category: Option<String>,
+    #[serde(default)]
+    pub sha256: Option<String>,
+    #[serde(default)]
     pub id: Option<String>,
     #[serde(default)]
     pub undo_of: Option<String>,
