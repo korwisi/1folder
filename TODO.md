@@ -115,10 +115,10 @@ tests together with the fix rather than maintaining parallel descriptions.
 - [x] Stability timeout while a watched file is still changing; verify it is
       not processed prematurely, stays in place in `--once` mode with a visible
       error/exit status, and remains eligible for retry in watch mode.
-- [ ] Concurrent changes to watched files, large files and directories, stale
+- [x] Concurrent changes to watched files, large files and directories, stale
       or damaged indexes, destination collisions, symlinks, and
       removable/external volumes where applicable.
-- [ ] Filesystem tests stay isolated in temporary directories; avoid assumptions
+- [x] Filesystem tests stay isolated in temporary directories; avoid assumptions
       about the developer's real home directory or mounted volumes.
 
 ## Rules and classification

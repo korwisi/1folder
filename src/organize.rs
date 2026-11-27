@@ -148,6 +148,9 @@ pub fn folder_should_process(config: &Config, dir: &Path) -> bool {
     if !dir.is_dir() {
         return false;
     }
+    if fs::symlink_metadata(dir).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
+        return false;
+    }
     if is_hidden(dir) || is_under(dir, &config.target_dir) {
         return false;
     }
@@ -165,6 +168,9 @@ pub fn folder_should_process(config: &Config, dir: &Path) -> bool {
 
 pub fn should_process(config: &Config, path: &Path) -> bool {
     if path.is_dir() || !path.exists() {
+        return false;
+    }
+    if fs::symlink_metadata(path).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
         return false;
     }
     if is_hidden(path) || is_under(path, &config.target_dir) {
@@ -823,6 +829,25 @@ mod tests {
         assert!(!wait_until_stable(&path, Duration::from_millis(150)));
         writer.join().unwrap();
         assert!(path.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinks_are_not_processed() {
+        use std::os::unix::fs::symlink;
+
+        let tmp = tempfile::tempdir().unwrap();
+        let target = tmp.path().join("target");
+        let watched = tmp.path().join("watched");
+        std::fs::create_dir_all(&target).unwrap();
+        std::fs::create_dir_all(&watched).unwrap();
+        std::fs::write(target.join("real.txt"), b"real").unwrap();
+        symlink(target.join("real.txt"), watched.join("link.txt")).unwrap();
+
+        let config = config_with_target(&target);
+        let mut config = config;
+        config.watch.dirs = vec![watched.clone()];
+        assert!(!should_process(&config, &watched.join("link.txt")));
     }
 
     #[test]
