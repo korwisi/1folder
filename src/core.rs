@@ -90,6 +90,11 @@ pub struct UndoSummary {
     pub restored: usize,
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct TargetIconSummary {
+    pub target_dir: PathBuf,
+}
+
 pub fn load_config(path: &Path) -> Result<Config> {
     Config::load(path)
 }
@@ -119,6 +124,13 @@ pub fn run_once(config: &Config, dry_run: bool, report_path: Option<&Path>) -> R
 
 pub fn reconcile(config: &Config) -> Result<()> {
     crate::operation::reconcile(config)
+}
+
+pub fn set_target_folder_icon(config: &Config) -> Result<TargetIconSummary> {
+    crate::icon::set_target_folder_icon(&config.target_dir)?;
+    Ok(TargetIconSummary {
+        target_dir: config.target_dir.clone(),
+    })
 }
 
 pub fn history(config: &Config) -> Result<ActivitySummary> {

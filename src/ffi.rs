@@ -84,6 +84,16 @@ pub extern "C" fn onefolder_history(config_path: *const c_char) -> OnefolderResu
 }
 
 #[no_mangle]
+pub extern "C" fn onefolder_set_target_icon(config_path: *const c_char) -> OnefolderResult {
+    match config_from_path(config_path).and_then(|config| {
+        core::set_target_folder_icon(&config).map_err(|error| format!("{error:#}"))
+    }) {
+        Ok(value) => result(value),
+        Err(error) => error_result(error),
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn onefolder_undo_last(
     config_path: *const c_char,
     dry_run: c_int,

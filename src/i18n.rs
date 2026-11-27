@@ -39,6 +39,8 @@ pub struct Messages {
     pub watched_entry_unreadable: &'static str,
     pub journal_malformed: &'static str,
     pub journal_truncated: &'static str,
+    pub target_icon_set: &'static str,
+    pub target_icon_failed: &'static str,
     #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     pub tags_failed: &'static str,
 }
@@ -73,6 +75,8 @@ pub const EN: Messages = Messages {
     watched_entry_unreadable: "Directory entry could not be read in {}: {}",
     journal_malformed: "Malformed journal record at line {}: {}",
     journal_truncated: "Truncated final journal record at line {}: {}",
+    target_icon_set: "Target folder icon set: {}",
+    target_icon_failed: "Could not set target folder icon: {}",
     tags_failed: "Could not set Finder tags on {}: {}",
 };
 
@@ -106,6 +110,8 @@ pub const DE: Messages = Messages {
     watched_entry_unreadable: "Verzeichniseintrag in {} konnte nicht gelesen werden: {}",
     journal_malformed: "Fehlerhafter Journaleintrag in Zeile {}: {}",
     journal_truncated: "Abgeschnittener letzter Journaleintrag in Zeile {}: {}",
+    target_icon_set: "Symbol des Zielordners gesetzt: {}",
+    target_icon_failed: "Symbol des Zielordners konnte nicht gesetzt werden: {}",
     tags_failed: "Finder-Tags konnten nicht gesetzt werden für {}: {}",
 };
 

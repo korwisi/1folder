@@ -87,6 +87,12 @@ onefolder --once --dry-run
 # 4. Sort existing files once
 onefolder --once
 
+Set the target folder's Finder icon to the 1folder monochrome icon:
+
+```sh
+onefolder --set-target-icon
+```
+
 # 5. Run continuously in the background
 onefolder
 ```

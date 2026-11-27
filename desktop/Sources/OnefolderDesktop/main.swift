@@ -21,6 +21,9 @@ func onefolder_history(_ path: UnsafePointer<CChar>) -> OnefolderResult
 @_silgen_name("onefolder_undo_last")
 func onefolder_undo_last(_ path: UnsafePointer<CChar>, _ dryRun: Int32) -> OnefolderResult
 
+@_silgen_name("onefolder_set_target_icon")
+func onefolder_set_target_icon(_ path: UnsafePointer<CChar>) -> OnefolderResult
+
 @_silgen_name("onefolder_free_string")
 func onefolder_free_string(_ value: UnsafeMutablePointer<CChar>)
 
@@ -98,6 +101,10 @@ struct RunSummary: Decodable {
 
 struct UndoSummary: Decodable {
     let restored: Int
+}
+
+struct TargetIconSummary: Decodable {
+    let target_dir: String
 }
 
 @MainActor
@@ -226,6 +233,34 @@ final class DesktopController: NSObject {
         messageField.stringValue = "Restored \(result.value?.restored ?? 0) operation(s)"
         refresh()
     }
+
+    @objc func setTargetIcon() {
+        let result: CoreResult<TargetIconSummary> = configPath.withCString { pointer in
+            let cResult = onefolder_set_target_icon(pointer)
+            defer {
+                if let json = cResult.json { onefolder_free_string(json) }
+                if let error = cResult.error { onefolder_free_string(error) }
+            }
+            if let errorPointer = cResult.error,
+               let error = String(validatingCString: errorPointer),
+               !error.isEmpty {
+                return CoreResult(value: nil, error: error)
+            }
+            guard let jsonPointer = cResult.json,
+                  let json = String(validatingCString: jsonPointer),
+                  let data = json.data(using: .utf8),
+                  let value = try? JSONDecoder().decode(TargetIconSummary.self, from: data) else {
+                return CoreResult(value: nil, error: "The Rust core returned no data")
+            }
+            return CoreResult(value: value, error: nil)
+        }
+        if let error = result.error {
+            messageField.stringValue = error
+            return
+        }
+        messageField.stringValue = "Set target folder icon: \(result.value?.target_dir ?? "")"
+        refresh()
+    }
 }
 
 @MainActor
@@ -255,6 +290,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSButton(title: "Refresh", target: controller, action: #selector(DesktopController.refresh)),
             NSButton(title: "Preview", target: controller, action: #selector(DesktopController.previewOnce)),
             NSButton(title: "Run once", target: controller, action: #selector(DesktopController.runOnce)),
+            NSButton(title: "Set target icon", target: controller, action: #selector(DesktopController.setTargetIcon)),
             NSButton(title: "Undo last", target: controller, action: #selector(DesktopController.undoLast))
         ])
         buttonRow.orientation = .horizontal

@@ -5,6 +5,7 @@ pub mod core;
 pub mod ffi;
 pub mod hash;
 pub mod i18n;
+pub mod icon;
 pub mod index;
 pub mod journal;
 pub mod notify;

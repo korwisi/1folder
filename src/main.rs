@@ -28,6 +28,11 @@ struct Cli {
     rename_category: Option<Vec<String>>,
     #[arg(long, help = "Only show what would happen, change nothing")]
     dry_run: bool,
+    #[arg(
+        long,
+        help = "Set the target folder icon to the 1folder monochrome icon"
+    )]
+    set_target_icon: bool,
     #[arg(long, help = "Write the default configuration and exit")]
     init_config: bool,
     #[arg(
@@ -80,6 +85,18 @@ fn main() -> Result<()> {
     }
     let config = config::Config::load(&config_path)?;
     log::debug!("Config loaded from {}", config_path.display());
+    if cli.set_target_icon {
+        let summary = core::set_target_folder_icon(&config)
+            .with_context(|| "Could not set the target folder icon")?;
+        println!(
+            "{}",
+            i18n::fmt(
+                i18n::Messages::get(config.general.language).target_icon_set,
+                &[&summary.target_dir.display()],
+            )
+        );
+        return Ok(());
+    }
     if !cli.dry_run {
         operation::reconcile(&config)?;
     }

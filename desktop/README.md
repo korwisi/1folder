@@ -28,4 +28,5 @@ swift run
 The prototype loads the default configuration from
 `~/Library/Application Support/1folder/config.toml`. It can show status,
 preview a one-shot run, run once, show recent journal activity, and undo the
-last operation.
+last operation. The **Set target icon** action applies the monochrome
+1folder icon to the configured target folder.
