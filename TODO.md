@@ -125,7 +125,7 @@ tests together with the fix rather than maintaining parallel descriptions.
 
 ## Rules and classification
 
-- [ ] More Office formats in the documents category: .docm, .potx, .pub
+- [x] More Office formats in the documents category: .docm, .potx, .pub
       (came up during the second dry-run analysis).
 - [ ] 3D/modeling formats in the 3d-print category: .blend, .fbx (Blender/Fbx are
       modeling rather than printing; maybe a separate 3d or models category

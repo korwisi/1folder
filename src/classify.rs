@@ -69,7 +69,12 @@ pub fn classify_reason(
 
     for rule in &config.rules {
         if rule_matches(rule, &ext, &file_name, pdf_text) {
-            log::debug!("{} → Regel '{}' ({})", path.display(), rule.name, rule.subdir);
+            log::debug!(
+                "{} → Regel '{}' ({})",
+                path.display(),
+                rule.name,
+                rule.subdir
+            );
             return (rule.subdir.clone(), Some(rule.name.clone()));
         }
     }
@@ -159,7 +164,12 @@ fn homogeneous_category(config: &Config, dir: &Path) -> Option<String> {
     category
 }
 
-fn rule_matches(rule: &crate::config::Rule, ext: &str, file_name: &str, pdf_text: Option<&str>) -> bool {
+fn rule_matches(
+    rule: &crate::config::Rule,
+    ext: &str,
+    file_name: &str,
+    pdf_text: Option<&str>,
+) -> bool {
     if !rule.extensions.is_empty()
         && !rule
             .extensions
@@ -231,7 +241,21 @@ mod tests {
         assert_eq!(classify(&config, &path("IMG_0001.CR2"), None), "Bilder");
         assert_eq!(classify(&config, &path("IMG_0002.cr3"), None), "Bilder");
         assert_eq!(classify(&config, &path("DSC_0001.NEF"), None), "Bilder");
-        assert_eq!(classify(&config, &path("ubuntu-24.04.iso"), None), "Archive");
+        assert_eq!(
+            classify(&config, &path("ubuntu-24.04.iso"), None),
+            "Archive"
+        );
+    }
+
+    #[test]
+    fn additional_office_formats_match_documents() {
+        let config = test_config();
+        assert_eq!(
+            classify(&config, &path("macro-document.docm"), None),
+            "Dokumente"
+        );
+        assert_eq!(classify(&config, &path("template.potx"), None), "Dokumente");
+        assert_eq!(classify(&config, &path("publisher.pub"), None), "Dokumente");
     }
 
     #[test]
@@ -308,10 +332,9 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("strand.jpg"), b"j").unwrap();
         let mut config = test_config();
-        config.rules.insert(
-            0,
-            rule("privates", "Privat", &[], &[], &[]),
-        );
+        config
+            .rules
+            .insert(0, rule("privates", "Privat", &[], &[], &[]));
         config.rules[0].folder_keywords = vec!["urlaub".to_string()];
         assert_eq!(classify_folder_reason(&config, &dir).0, "Privat");
     }

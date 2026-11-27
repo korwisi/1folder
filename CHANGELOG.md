@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Default document classification now includes `.docm`, `.potx`, and `.pub`.
+
 ## [0.5.0] - 2026-11-24
 
 ### Added

@@ -128,7 +128,7 @@ extensions = ["zip", "tar", "gz", "tgz", "7z", "rar", "dmg", "pkg", "iso", "img"
 [[rules]]
 name = "dokumente"
 subdir = "Dokumente"
-extensions = ["doc", "docx", "xls", "xlsx", "ppt", "pptx", "pages", "numbers", "key", "rtf", "txt", "md"]
+extensions = ["doc", "docm", "docx", "xls", "xlsx", "ppt", "pptx", "potx", "pub", "pages", "numbers", "key", "rtf", "txt", "md"]
 
 # Catch-all for PDFs that matched none of the keyword rules above.
 [[rules]]
