@@ -100,7 +100,7 @@ tests together with the fix rather than maintaining parallel descriptions.
       paths and traversal attempts (see the validation item).
 - [x] Malformed journal handling: invalid middle lines, a truncated final
       line, and undo behavior when the journal is incomplete.
-- [ ] Unreadable or disappearing input directories and individual
+- [x] Unreadable or disappearing input directories and individual
       directory-entry errors where they can be reproduced reliably.
 - [x] Interrupted or failed cross-filesystem moves, including failures during
       copy, final rename, and source removal (see "Make cross-filesystem moves

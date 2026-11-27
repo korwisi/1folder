@@ -260,6 +260,7 @@ pub fn run_once(config: &Config, dry_run: bool, report_path: Option<&Path>) -> R
     let mut enumeration_failed = false;
     for dir in &config.watch.dirs {
         if !dir.is_dir() {
+            enumeration_failed = true;
             log::warn!(
                 "{}",
                 crate::i18n::fmt(m.watch_dir_missing, &[&dir.display()])
@@ -508,5 +509,19 @@ mod tests {
         assert!(!report_path.exists());
         assert!(watched.join("foto.jpg").exists());
         assert!(repo.exists());
+    }
+
+    #[test]
+    fn once_mode_reports_missing_watched_directory() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut config: Config = toml::from_str(crate::config::DEFAULT_CONFIG).unwrap();
+        config.target_dir = tmp.path().join("target");
+        config.watch.dirs = vec![tmp.path().join("missing")];
+        config.notify.enabled = false;
+
+        let error = run_once(&config, true, None).unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("watched entries could not be processed"));
     }
 }
