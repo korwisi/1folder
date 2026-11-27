@@ -163,7 +163,16 @@ fn process_due(
         match result {
             Ok(Some(outcome)) => {
                 retry_attempts.remove(&path);
-                write_report(config, dry_run, report_path, Some(&outcome));
+                if let Err(e) = write_report(config, dry_run, report_path, Some(&outcome)) {
+                    let m = Messages::get(config.general.language);
+                    log::warn!(
+                        "{}",
+                        crate::i18n::fmt(
+                            m.error_processing,
+                            &[&path.display(), &format!("report write failed: {e:#}")],
+                        )
+                    );
+                }
             }
             Ok(None) => {
                 retry_attempts.remove(&path);
@@ -219,21 +228,15 @@ fn process_due(
 }
 
 fn write_report(
-    config: &Config,
+    _config: &Config,
     dry_run: bool,
     report_path: Option<&Path>,
     outcome: Option<&organize::Outcome>,
-) {
+) -> Result<()> {
     let (Some(report_path), Some(outcome)) = (report_path, outcome) else {
-        return;
+        return Ok(());
     };
-    if let Err(e) = report::append(report_path, outcome, dry_run) {
-        let m = Messages::get(config.general.language);
-        log::warn!(
-            "{}",
-            crate::i18n::fmt(m.report_write_failed, &[&format!("{e:#}")])
-        );
-    }
+    report::append(report_path, outcome, dry_run)
 }
 
 fn unit_root(config: &Config, path: &Path) -> PathBuf {
@@ -318,7 +321,13 @@ pub fn run_once(config: &Config, dry_run: bool, report_path: Option<&Path>) -> R
         match process_folder(config, dry_run, dir) {
             Ok(Some(outcome)) => {
                 moved += 1;
-                write_report(config, dry_run, report_path, Some(&outcome));
+                if let Err(e) = write_report(config, dry_run, report_path, Some(&outcome)) {
+                    processing_failed = true;
+                    log::error!(
+                        "{}",
+                        crate::i18n::fmt(m.report_write_failed, &[&format!("{e:#}")])
+                    );
+                }
             }
             Ok(None) => {}
             Err(e) => {
@@ -334,7 +343,13 @@ pub fn run_once(config: &Config, dry_run: bool, report_path: Option<&Path>) -> R
         match process_file(config, dry_run, path, &mut index) {
             Ok(Some(outcome)) if outcome.action == organize::Action::Moved => {
                 moved += 1;
-                write_report(config, dry_run, report_path, Some(&outcome));
+                if let Err(e) = write_report(config, dry_run, report_path, Some(&outcome)) {
+                    processing_failed = true;
+                    log::error!(
+                        "{}",
+                        crate::i18n::fmt(m.report_write_failed, &[&format!("{e:#}")])
+                    );
+                }
                 log::info!(
                     "{:?}: {} → {}",
                     outcome.action,
@@ -350,7 +365,13 @@ pub fn run_once(config: &Config, dry_run: bool, report_path: Option<&Path>) -> R
                     outcome.category,
                     &outcome.sha256[..12.min(outcome.sha256.len())]
                 );
-                write_report(config, dry_run, report_path, Some(&outcome));
+                if let Err(e) = write_report(config, dry_run, report_path, Some(&outcome)) {
+                    processing_failed = true;
+                    log::error!(
+                        "{}",
+                        crate::i18n::fmt(m.report_write_failed, &[&format!("{e:#}")])
+                    );
+                }
             }
             Ok(None) => {}
             Err(e) => {

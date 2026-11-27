@@ -74,7 +74,7 @@ tables in `src/i18n.rs`.
       decision per mode — the watch-mode pending map can retry, but `--once` has
       no retry mechanism, so there the file must stay in place and the run must
       surface a visible error/exit status instead of skipping silently.
-- [ ] Review all filesystem mutations for interruption and error handling:
+- [x] Review all filesystem mutations for interruption and error handling:
       destination collisions, permissions, full disks, disappearing volumes,
       source changes during processing, and failures while writing reports or
       journal entries must not result in silent data loss or misleading state.
