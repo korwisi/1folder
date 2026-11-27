@@ -265,6 +265,39 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "run explicitly with: cargo test --release index::tests::benchmark_hash_index_refresh -- --ignored --nocapture"]
+    fn benchmark_hash_index_refresh() {
+        for file_count in [100, 1_000, 5_000] {
+            let dir = tempfile::tempdir().unwrap();
+            for index in 0..file_count {
+                fs::write(
+                    dir.path().join(format!("file-{index:05}.bin")),
+                    vec![b'x'; 1024],
+                )
+                .unwrap();
+            }
+
+            let mut idx = PersistentIndex::load_or_create(dir.path()).unwrap();
+            let cold_started = std::time::Instant::now();
+            idx.refresh(dir.path()).unwrap();
+            let cold = cold_started.elapsed();
+
+            let mut warm_runs = Vec::new();
+            for _ in 0..3 {
+                let warm_started = std::time::Instant::now();
+                idx.refresh(dir.path()).unwrap();
+                warm_runs.push(warm_started.elapsed());
+            }
+            let warm_average =
+                warm_runs.iter().sum::<std::time::Duration>() / warm_runs.len() as u32;
+
+            println!(
+                "{file_count} target files: cold={cold:?}, warm_average={warm_average:?}, warm_runs={warm_runs:?}"
+            );
+        }
+    }
+
+    #[test]
     fn fresh_index_has_no_entries() {
         let dir = tempfile::tempdir().unwrap();
         let idx = PersistentIndex::load_or_create(dir.path()).unwrap();

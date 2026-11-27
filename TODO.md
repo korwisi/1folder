@@ -150,8 +150,11 @@ tests together with the fix rather than maintaining parallel descriptions.
 - [ ] Avoid a full recursive target-folder scan for every incoming file.
       The persistent index currently avoids re-hashing unchanged files, but
       repeated refresh scans can still make batches of incoming files
-      unnecessarily expensive. Measure this with large targets first, then
-      consider refreshing once per batch or using incremental updates.
+      unnecessarily expensive. A direct `PersistentIndex::refresh()` benchmark
+      is available in `src/index.rs`; run it with the documented release build
+      command, then consider refreshing once per batch or using incremental updates.
+      Latest direct benchmark: 100 files cold 3.5 ms / warm 0.38 ms; 1,000 files
+      cold 22.3 ms / warm 3.6 ms; 5,000 files cold 117.3 ms / warm 19.1 ms.
 - [ ] onefolder rename-category <old> <new>: rename a category end-to-end —
       update every config reference (rules[].subdir, fallback_subdir,
       folders.subdir, dedupe.duplicates_subdir) in place while preserving
