@@ -126,6 +126,11 @@ subdir = "Archive"
 extensions = ["zip", "tar", "gz", "tgz", "7z", "rar", "dmg", "pkg", "iso", "img", "bin"]
 
 [[rules]]
+name = "binaries"
+subdir = "Binaries"
+extensions = ["exe", "dll", "msi", "msix", "appimage"]
+
+[[rules]]
 name = "dokumente"
 subdir = "Dokumente"
 extensions = ["doc", "docm", "docx", "xls", "xlsx", "ppt", "pptx", "potx", "pub", "pages", "numbers", "key", "rtf", "txt", "md"]

@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Default document classification now includes `.docm`, `.potx`, and `.pub`.
 - Default 3D classification now includes Blender `.blend` and FBX `.fbx` files.
+- Executable and binary formats now use a dedicated `Binaries` category.
+- Private keys and certificates remain in the fallback category; `.key` files are
+  distinguished by private-key content markers so Keynote presentations are still
+  classified as documents.
 
 ## [0.5.0] - 2026-11-24
 

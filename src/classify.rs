@@ -61,6 +61,10 @@ pub fn classify_reason(
     path: &Path,
     pdf_text: Option<&str>,
 ) -> (String, Option<String>) {
+    if is_sensitive_certificate_or_key(path) {
+        return (config.fallback_subdir.clone(), None);
+    }
+
     let ext = file_extension(path);
     let file_name = path
         .file_name()
@@ -79,6 +83,33 @@ pub fn classify_reason(
         }
     }
     (config.fallback_subdir.clone(), None)
+}
+
+fn is_sensitive_certificate_or_key(path: &Path) -> bool {
+    match file_extension(path).as_str() {
+        "pem" | "p12" | "pfx" | "p8" | "der" | "crt" | "cer" | "jks" | "keystore" => true,
+        "key" => {
+            let mut file = match std::fs::File::open(path) {
+                Ok(file) => file,
+                Err(_) => return false,
+            };
+            use std::io::Read;
+            let mut prefix = [0u8; 65536];
+            let len = match file.read(&mut prefix) {
+                Ok(len) => len,
+                Err(_) => return false,
+            };
+            let text = String::from_utf8_lossy(&prefix[..len]);
+            [
+                "PRIVATE KEY",
+                "PuTTY-User-Key-File",
+                "BEGIN SSH2 ENCRYPTED PRIVATE KEY",
+            ]
+            .iter()
+            .any(|marker| text.contains(marker))
+        }
+        _ => false,
+    }
 }
 
 pub fn classify_folder_reason(config: &Config, dir: &Path) -> (String, Option<String>) {
@@ -259,10 +290,42 @@ mod tests {
     }
 
     #[test]
+    fn private_keys_stay_in_fallback_and_keynote_stays_in_documents() {
+        let config = test_config();
+        let tmp = tempfile::tempdir().unwrap();
+        let private_key = tmp.path().join("server.key");
+        std::fs::write(
+            &private_key,
+            b"-----BEGIN RSA PRIVATE KEY-----\nprivate-data\n",
+        )
+        .unwrap();
+        assert_eq!(
+            classify(&config, &private_key, None),
+            config.fallback_subdir
+        );
+
+        let keynote = tmp.path().join("presentation.key");
+        std::fs::write(&keynote, b"PK\x03\x04zip-based-keynote").unwrap();
+        assert_eq!(classify(&config, &keynote, None), "Dokumente");
+        assert_eq!(
+            classify(&config, &path("certificate.pem"), None),
+            "Sonstiges"
+        );
+    }
+
+    #[test]
     fn modeling_formats_match_3d_category() {
         let config = test_config();
         assert_eq!(classify(&config, &path("scene.blend"), None), "3D-Druck");
         assert_eq!(classify(&config, &path("character.fbx"), None), "3D-Druck");
+    }
+
+    #[test]
+    fn executable_formats_match_binaries() {
+        let config = test_config();
+        assert_eq!(classify(&config, &path("installer.exe"), None), "Binaries");
+        assert_eq!(classify(&config, &path("library.dll"), None), "Binaries");
+        assert_eq!(classify(&config, &path("app.AppImage"), None), "Binaries");
     }
 
     #[test]

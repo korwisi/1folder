@@ -130,13 +130,14 @@ tests together with the fix rather than maintaining parallel descriptions.
 - [x] 3D/modeling formats in the 3d-print category: .blend, .fbx (Blender/Fbx are
       modeling rather than printing; maybe a separate 3d or models category
       instead).
-- [ ] .exe handling: currently falls through to the fallback category.
+- [x] .exe handling: currently falls through to the fallback category.
       Windows binaries could go to Archive, a dedicated category, or stay
-      in the fallback — decide once we know how often they appear.
-- [ ] Certificates and keys (.pem, .key, .p12, …): deliberately **not**
-      routed anywhere for now. They contain private material and must stay
-      where the user put them; revisit only if there is a real need, and
-      never move them silently.
+      in the fallback — Windows executables and common binary formats now go to
+      a dedicated Binaries category.
+- [x] Certificates and keys (.pem, .key, .p12, …): deliberately **not**
+      routed anywhere for now. Certificate/key extensions remain in the fallback
+      category. `.key` is classified by content: private-key markers keep the file
+      in place, while non-private Keynote `.key` documents are routed to Dokumente.
 
 ## Target folder maintenance
 
