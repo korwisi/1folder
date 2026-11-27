@@ -10,6 +10,21 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{RecvTimeoutError, TryRecvError};
 use std::time::{Duration, Instant};
 
+const MAX_PROCESS_ATTEMPTS: usize = 10;
+const MAX_RETRY_DELAY: Duration = Duration::from_secs(30);
+
+fn retry_delay(attempt: usize, debounce: Duration) -> Duration {
+    let multiplier = 1usize << attempt.min(5);
+    let delay = debounce
+        .saturating_mul(multiplier as u32)
+        .min(MAX_RETRY_DELAY);
+    if delay.is_zero() {
+        Duration::from_millis(200)
+    } else {
+        delay
+    }
+}
+
 pub fn run_watch(config: &Config, dry_run: bool, report_path: Option<&Path>) -> Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
     let mut watcher = recommended_watcher(tx)?;
@@ -161,8 +176,29 @@ fn process_due(
                 );
                 let attempts = retry_attempts.entry(path.clone()).or_insert(0);
                 *attempts += 1;
-                if *attempts < 10 {
-                    pending.insert(path, Instant::now());
+                if *attempts < MAX_PROCESS_ATTEMPTS {
+                    let delay = retry_delay(*attempts, debounce);
+                    pending.insert(
+                        path.clone(),
+                        Instant::now()
+                            .checked_add(delay)
+                            .unwrap_or_else(Instant::now),
+                    );
+                    log::warn!(
+                        "{}",
+                        crate::i18n::fmt(
+                            m.error_processing,
+                            &[
+                                &path.display(),
+                                &format!(
+                                    "retrying in {}ms (attempt {}/{})",
+                                    delay.as_millis(),
+                                    *attempts,
+                                    MAX_PROCESS_ATTEMPTS
+                                )
+                            ],
+                        )
+                    );
                 } else {
                     log::error!(
                         "{}",
@@ -340,6 +376,14 @@ pub fn run_once(config: &Config, dry_run: bool, report_path: Option<&Path>) -> R
 mod tests {
     use super::*;
     use std::path::Path;
+
+    #[test]
+    fn retry_delay_has_bounded_exponential_backoff() {
+        let debounce = Duration::from_millis(100);
+        assert_eq!(retry_delay(1, debounce), Duration::from_millis(200));
+        assert_eq!(retry_delay(5, debounce), Duration::from_millis(3200));
+        assert_eq!(retry_delay(100, Duration::from_secs(10)), MAX_RETRY_DELAY);
+    }
 
     #[test]
     fn browser_temp_files_are_detected() {

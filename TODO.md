@@ -78,7 +78,7 @@ tables in `src/i18n.rs`.
       destination collisions, permissions, full disks, disappearing volumes,
       source changes during processing, and failures while writing reports or
       journal entries must not result in silent data loss or misleading state.
-- [ ] Define a retry/recovery policy for transient watch-mode processing
+- [x] Define a retry/recovery policy for transient watch-mode processing
       failures. Currently, failed events can be removed from the pending set;
       ensure files are not silently abandoned and make repeated failures
       visible without creating an unbounded retry loop.
