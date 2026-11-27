@@ -133,6 +133,10 @@ pub fn set_target_folder_icon(config: &Config) -> Result<TargetIconSummary> {
     })
 }
 
+pub fn save_config(path: &Path, raw: &str) -> Result<()> {
+    crate::config::Config::save_raw(path, raw)
+}
+
 pub fn history(config: &Config) -> Result<ActivitySummary> {
     let records = crate::journal::read(&config.journal_path()).with_context(|| {
         format!(

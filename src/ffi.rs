@@ -94,6 +94,27 @@ pub extern "C" fn onefolder_set_target_icon(config_path: *const c_char) -> Onefo
 }
 
 #[no_mangle]
+/// Saves TOML text only after it has been parsed and validated.
+///
+/// # Safety
+/// `config_path` and `config_text` must be valid pointers to NUL-terminated
+/// strings for the duration of the call.
+pub unsafe extern "C" fn onefolder_save_config(
+    config_path: *const c_char,
+    config_text: *const c_char,
+) -> OnefolderResult {
+    if config_path.is_null() || config_text.is_null() {
+        return error_result("Config path or text is null".to_string());
+    }
+    let path = unsafe { CStr::from_ptr(config_path) }.to_string_lossy();
+    let text = unsafe { CStr::from_ptr(config_text) }.to_string_lossy();
+    match core::save_config(Path::new(path.as_ref()), text.as_ref()) {
+        Ok(()) => result(serde_json::json!({"saved": true})),
+        Err(error) => error_result(format!("{error:#}")),
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn onefolder_undo_last(
     config_path: *const c_char,
     dry_run: c_int,

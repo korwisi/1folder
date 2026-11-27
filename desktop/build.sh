@@ -29,8 +29,10 @@ fi
 install_name_tool -add_rpath "@executable_path/../Frameworks" \
   "$APP_DIR/MacOS/OnefolderDesktop"
 
-codesign --force --sign - "$APP_DIR/Frameworks/libonefolder.dylib"
-codesign --force --sign - "$APP_DIR/MacOS/OnefolderDesktop"
+codesign --force --identifier "de.korwisi.onefolder.desktop" --sign - \
+  "$APP_DIR/Frameworks/libonefolder.dylib"
+codesign --force --identifier "de.korwisi.onefolder.desktop" --sign - \
+  "$APP_DIR/MacOS/OnefolderDesktop"
 
 cat > "$APP_DIR/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -59,7 +61,7 @@ cat > "$APP_DIR/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
-codesign --force --deep --sign - "$APP"
+codesign --force --deep --identifier "de.korwisi.onefolder.desktop" --sign - "$APP"
 codesign --verify --deep "$APP" >/dev/null 2>&1 || true
 
 echo "Built desktop/$APP"

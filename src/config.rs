@@ -173,12 +173,39 @@ impl Config {
     pub fn load(path: &Path) -> Result<Config> {
         let raw = std::fs::read_to_string(path)
             .with_context(|| format!("Config not readable: {}", path.display()))?;
-        let mut config: Config =
-            toml::from_str(&raw).with_context(|| format!("Config invalid: {}", path.display()))?;
-        config.validate_subdirectories()?;
+        let mut config = Self::parse(&raw, path)?;
         config.target_dir = expand_tilde(&config.target_dir);
         config.watch.dirs = config.watch.dirs.iter().map(|d| expand_tilde(d)).collect();
         Ok(config)
+    }
+
+    pub fn parse(raw: &str, path: &Path) -> Result<Config> {
+        let config: Config =
+            toml::from_str(raw).with_context(|| format!("Config invalid: {}", path.display()))?;
+        config.validate_subdirectories()?;
+        Ok(config)
+    }
+
+    pub fn save_raw(path: &Path, raw: &str) -> Result<()> {
+        let mut config = Self::parse(raw, path)?;
+        config.validate_subdirectories()?;
+        config.target_dir = expand_tilde(&config.target_dir);
+        config.watch.dirs = config.watch.dirs.iter().map(|d| expand_tilde(d)).collect();
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).with_context(|| {
+                format!(
+                    "Config directory could not be created: {}",
+                    parent.display()
+                )
+            })?;
+        }
+        let temp = path.with_extension("toml.tmp");
+        std::fs::write(&temp, raw).with_context(|| {
+            format!("Temporary config could not be written: {}", temp.display())
+        })?;
+        std::fs::rename(&temp, path)
+            .with_context(|| format!("Config could not be saved: {}", path.display()))?;
+        Ok(())
     }
 
     pub fn validate_subdirectories(&self) -> Result<()> {
@@ -226,6 +253,27 @@ pub fn default_config_path() -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn save_raw_rejects_invalid_toml_without_replacing_config() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("config.toml");
+        std::fs::write(&path, DEFAULT_CONFIG).unwrap();
+
+        let error = Config::save_raw(&path, "not = [valid").unwrap_err();
+        assert!(error.to_string().contains("Config invalid"));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), DEFAULT_CONFIG);
+    }
+
+    #[test]
+    fn save_raw_updates_valid_config_atomically() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("config.toml");
+
+        Config::save_raw(&path, DEFAULT_CONFIG).unwrap();
+
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), DEFAULT_CONFIG);
+    }
 
     #[test]
     fn example_config_parses() {

@@ -338,9 +338,30 @@ running.
 ## macOS permissions (TCC)
 
 Access to *Downloads*, *Desktop* and *Documents* is protected by macOS privacy
-controls. On first run, macOS shows a prompt ("Files and Folders"); accept it, or grant
-the binary Full Disk Access under *System Settings → Privacy & Security → Full Disk
-Access*. When started from a terminal, the terminal app needs this permission.
+controls. The LaunchAgent and desktop app are separate processes and have separate macOS
+permission identities.
+
+To grant permanent access:
+
+1. Open *System Settings → Privacy & Security → Files and Folders*.
+2. Add `/usr/local/bin/onefolder` for the LaunchAgent and enable access to **Desktop**
+   and **Documents** (and any other configured watched or target folders).
+3. Open *1folder.app* in Finder. Use **Open** once, then add the app itself under
+   *Privacy & Security → Files and Folders*.
+4. If macOS does not show the folders in the Files and Folders list, also add both
+   `/usr/local/bin/onefolder` and `1folder.app` under *Privacy & Security → Full Disk
+   Access*. Full Disk Access is broader than necessary; prefer Files and Folders where
+   macOS offers it.
+5. Remove stale entries for old app or binary paths after moving or rebuilding the app.
+
+Stable, consistently code-signed builds preserve these grants across updates. The
+`desktop/build.sh` development build uses the fixed ad-hoc identity
+`de.korwisi.onefolder.desktop`, so the app itself remains distinguishable across local
+rebuilds. The installed `/usr/local/bin/onefolder` binary must have a stable signature
+or be an Apple-signed Developer ID build for persistent LaunchAgent grants. Repeated
+prompts after every file are not normal with a consistent, stable executable identity;
+they indicate that the binary or app bundle has changed identity or has not been granted
+the required folders.
 
 ## Limitations / roadmap
 
