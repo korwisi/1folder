@@ -15,12 +15,13 @@ use std::path::{Path, PathBuf};
 struct Item {
     path: PathBuf,
     current_category: String,
+    relative_dir: PathBuf,
 }
 
 /// Re-applies the current classification rules to everything already inside
 /// the target folder. Only direct children of each category folder are
 /// considered (plus stray files in the target root); nested folder units are
-/// re-evaluated as whole units, their contents stay untouched. Moves are
+/// re-evaluated as whole units, nested files keep their relative path, and moves are
 /// journaled as `reclassified` and can be undone with `--undo`.
 pub fn run(config: &Config, dry_run: bool, report_path: Option<&Path>) -> Result<()> {
     let m = Messages::get(config.general.language);
@@ -77,6 +78,7 @@ fn collect(config: &Config) -> Vec<Item> {
             items.push(Item {
                 current_category: String::new(),
                 path: entry,
+                relative_dir: PathBuf::new(),
             });
             continue;
         }
@@ -94,13 +96,49 @@ fn collect(config: &Config) -> Vec<Item> {
             if classify::is_hidden(&child) {
                 continue;
             }
-            items.push(Item {
-                current_category: current_category.clone(),
-                path: child,
-            });
+            if child.is_dir() {
+                if config.folders.mode == FolderMode::MoveAsUnit {
+                    items.push(Item {
+                        current_category: current_category.clone(),
+                        path: child,
+                        relative_dir: PathBuf::new(),
+                    });
+                } else {
+                    collect_nested_files(&child, &entry, &current_category, &mut items);
+                }
+            } else {
+                items.push(Item {
+                    current_category: current_category.clone(),
+                    path: child,
+                    relative_dir: PathBuf::new(),
+                });
+            }
         }
     }
     items
+}
+
+fn collect_nested_files(
+    dir: &Path,
+    category_dir: &Path,
+    current_category: &str,
+    items: &mut Vec<Item>,
+) {
+    let rel_dir = dir.strip_prefix(category_dir).unwrap_or(dir).to_path_buf();
+    for entry in sorted_children(dir) {
+        if classify::is_hidden(&entry) {
+            continue;
+        }
+        if entry.is_dir() {
+            collect_nested_files(&entry, category_dir, current_category, items);
+        } else {
+            items.push(Item {
+                current_category: current_category.to_string(),
+                path: entry,
+                relative_dir: rel_dir.clone(),
+            });
+        }
+    }
 }
 
 fn sorted_children(dir: &Path) -> Vec<PathBuf> {
@@ -135,7 +173,8 @@ fn reclassify_file(
     let sha256 = sha256_file(path)?;
     let dest_dir = config.target_dir.join(&category);
     let file_name: PathBuf = path.file_name().map(PathBuf::from).unwrap_or_default();
-    let dst = free_destination(&dest_dir, &file_name);
+    let dst_dir = dest_dir.join(&item.relative_dir);
+    let dst = free_destination(&dst_dir, &file_name);
     let outcome = Outcome {
         action: Action::Reclassified,
         src: path.to_path_buf(),
@@ -150,8 +189,8 @@ fn reclassify_file(
     }
 
     let m = Messages::get(config.general.language);
-    fs::create_dir_all(&dest_dir)
-        .with_context(|| crate::i18n::fmt(m.dir_not_creatable, &[&dest_dir.display()]))?;
+    fs::create_dir_all(&dst_dir)
+        .with_context(|| crate::i18n::fmt(m.dir_not_creatable, &[&dst_dir.display()]))?;
     crate::operation::move_file(config, Action::Reclassified, path, &dst, &category, &sha256)
         .with_context(|| crate::i18n::fmt(m.move_failed, &[&path.display(), &dst.display()]))?;
     apply_tag(config, &dst, &category);
@@ -395,6 +434,25 @@ mod tests {
         run(&config, false, None).unwrap();
         assert!(target.join("Privat/Urlaub_2024/foto.jpg").exists());
         assert!(target.join("Privat/Urlaub_2024/sub/b.jpg").exists());
+        assert!(!old.exists());
+    }
+
+    #[test]
+    fn nested_paths_are_reclassified_and_preserved() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target = tmp.path().join("target");
+        let mut config = config_with_target(&target);
+        config.folders.mode = FolderMode::Ignore;
+        let old = target.join("Dokumente/archive/sub/report.txt");
+        fs::create_dir_all(old.parent().unwrap()).unwrap();
+        fs::write(&old, b"report").unwrap();
+        config
+            .rules
+            .insert(0, rule_with_ext("text-neu", "Notes", "txt"));
+
+        run(&config, false, None).unwrap();
+
+        assert!(target.join("Notes/archive/sub/report.txt").exists());
         assert!(!old.exists());
     }
 
