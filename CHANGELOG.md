@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dry-run, category subdirectory validation, tool-owned index files, stability
   timeout handling, watched-directory enumeration, and malformed journal handling
   are now enforced consistently across CLI and watch workflows.
+- Release workflow `v0.5.0` run 45422234588 was verified end to end: the
+  universal macOS archive was uploaded, downloaded, extracted, installed, and
+  confirmed to contain both `x86_64` and `arm64` support.
 
 ## [0.4.1] - 2026-11-16
 

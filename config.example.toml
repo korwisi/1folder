@@ -128,11 +128,14 @@ extensions = ["zip", "tar", "gz", "tgz", "7z", "rar", "dmg", "pkg", "iso", "img"
 [[rules]]
 name = "binaries"
 subdir = "Binaries"
+# Executable and Windows binary formats.
 extensions = ["exe", "dll", "msi", "msix", "appimage"]
 
 [[rules]]
 name = "dokumente"
 subdir = "Dokumente"
+# Apple iWork .key presentations and Office document formats.
+# Private .key files, certificates, and key containers are kept in fallback_subdir.
 extensions = ["doc", "docm", "docx", "xls", "xlsx", "ppt", "pptx", "potx", "pub", "pages", "numbers", "key", "rtf", "txt", "md"]
 
 # Catch-all for PDFs that matched none of the keyword rules above.

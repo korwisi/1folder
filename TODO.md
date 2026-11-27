@@ -187,10 +187,10 @@ tests together with the fix rather than maintaining parallel descriptions.
       arches) so one asset covers both Intel and Apple Silicon Macs. See README
       for setup.
 - [x] Release automation with GitHub Actions: workflow and universal-build
-      script are prepared to build on tag push and attach the artifact to a
-      GitHub Release. **Not yet tested end to end**; verify the first real
-      release run, uploaded asset, archive contents, and download/install
-      instructions before treating this as complete.
+      script build on tag push and attach the artifact to a GitHub Release.
+      Verified end to end with `v0.5.0` run 45422234588: workflow success,
+      uploaded archive, universal architecture contents, download/extraction,
+      installation, and LaunchAgent restart.
 - [ ] Consider code signing / notarization so macOS Gatekeeper does not
       quarantine downloaded binaries (needs an Apple Developer ID).
 

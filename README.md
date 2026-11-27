@@ -193,6 +193,18 @@ Safari `.download` bundles, empty folders and hidden folders are left alone.
 Loose files directly in a watched folder are sorted per file as before. Set
 `folders.mode = "ignore"` to restore pure per-file sorting.
 
+### Executable and sensitive files
+
+The default rules route common executable and Windows binary formats to the
+`Binaries` category (`.exe`, `.dll`, `.msi`, `.msix`, `.appimage`). Adjust or
+remove this rule if those formats should remain elsewhere.
+
+Certificates and private key containers are intentionally not moved: `.pem`,
+`.p12`, `.pfx`, `.p8`, `.der`, `.crt`, `.cer`, `.jks`, and `.keystore` remain
+in `fallback_subdir`. Files with the `.key` extension are inspected for private
+key content markers. A private `.key` file remains in `fallback_subdir`, while
+an Apple Keynote presentation (`.key`) continues to match the documents rule.
+
 ### Renaming categories
 
 Quit the background agent, then rename a category end-to-end:
