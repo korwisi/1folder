@@ -234,6 +234,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let controller = DesktopController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        setApplicationIcon()
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 900, height: 620),
             styleMask: [.titled, .closable, .resizable, .miniaturizable],
@@ -278,6 +279,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.makeKeyAndOrderFront(nil)
         self.window = window
         controller.refresh()
+    }
+
+    func setApplicationIcon() {
+        let iconCandidates = [
+            Bundle.main.resourceURL?.appendingPathComponent("onefolder.icns").path,
+            URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                .deletingLastPathComponent()
+                .appendingPathComponent("assets/icon/onefolder.icns")
+                .path
+        ].compactMap { $0 }
+
+        for path in iconCandidates {
+            if let icon = NSImage(contentsOfFile: path) {
+                NSApp.applicationIconImage = icon
+                break
+            }
+        }
     }
 
     func textSection(_ title: String, _ textView: NSTextView) -> NSView {

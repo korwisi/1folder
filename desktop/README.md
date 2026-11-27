@@ -15,6 +15,9 @@ Build:
 ./desktop/build.sh
 ```
 
+This creates `desktop/1folder.app` with the 1folder icon, executable, resources,
+and Rust library bundled together.
+
 Run:
 
 ```sh
