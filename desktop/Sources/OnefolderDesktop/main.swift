@@ -146,6 +146,16 @@ final class DesktopController: NSObject {
         languagePopUp.addItems(withTitles: ["English", "Deutsch"])
         preservePopUp.addItems(withTitles: ["off", "structure", "prefix"])
         dedupePopUp.addItems(withTitles: ["skip", "keep_both", "move_to_duplicates"])
+        for control in [targetDirField, watchDirsField, stabilityField, debounceField] {
+            control.target = self
+            control.action = #selector(markConfigDirty)
+        }
+        languagePopUp.target = self
+        languagePopUp.action = #selector(markConfigDirty)
+        preservePopUp.target = self
+        preservePopUp.action = #selector(markConfigDirty)
+        dedupePopUp.target = self
+        dedupePopUp.action = #selector(markConfigDirty)
         notifySwitch.target = self
         notifySwitch.action = #selector(markConfigDirty)
         tagsSwitch.target = self
@@ -166,7 +176,14 @@ final class DesktopController: NSObject {
         }
     }
 
-    @objc func markConfigDirty() {}
+    @objc func markConfigDirty() {
+        messageField.stringValue = "Unsaved changes"
+    }
+
+    @objc func loadSelectedConfig() {
+        loadConfigText()
+        refresh()
+    }
 
     func tomlValue(_ key: String, section: String, in text: String) -> String? {
         var currentSection = ""
@@ -519,6 +536,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller.configField.bezelStyle = .roundedBezel
         controller.configField.isEditable = true
         controller.configField.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        controller.configField.target = controller
+        controller.configField.action = #selector(DesktopController.loadSelectedConfig)
+
+        let integerFormatter = NumberFormatter()
+        integerFormatter.numberStyle = .none
+        integerFormatter.allowsFloats = false
+        integerFormatter.minimum = 0
+        controller.stabilityField.formatter = integerFormatter
+        controller.debounceField.formatter = integerFormatter
 
         controller.messageField.font = .systemFont(ofSize: 12)
         controller.messageField.textColor = .secondaryLabelColor
@@ -528,6 +554,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let saveButton = NSButton(title: "Save & restart agent", target: controller,
                                   action: #selector(DesktopController.saveConfig))
+        saveButton.bezelStyle = .rounded
         saveButton.keyEquivalent = "\r"
         let toolbar = NSStackView(views: [
             controller.messageField,

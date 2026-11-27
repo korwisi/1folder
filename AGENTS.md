@@ -43,6 +43,9 @@ There is no CI pipeline yet; run `cargo test` and `cargo clippy` before committi
 - `src/notify.rs` – macOS notifications via `osascript`, log-only elsewhere
 - `src/tags.rs` – Finder tags via `com.apple.metadata:_kMDItemUserTags` xattr
   (binary plist), no-op on non-macOS; configured in `[tags]`, per-rule `color`
+- `desktop/` – native macOS AppKit prototype linked to the Rust library through
+  `src/ffi.rs`; build it with `./desktop/build.sh`. Treat it as experimental and
+  unfinished; do not describe it as production-ready.
 
 ## Conventions
 

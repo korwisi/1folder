@@ -72,6 +72,19 @@ automatically at login, install the LaunchAgent described under
 [Running as a background agent](#running-as-a-background-agent-launchagent) and grant
 the required permissions under [macOS permissions (TCC)](#macos-permissions-tcc).
 
+The **experimental** native macOS desktop prototype provides an alternative interface
+for inspecting status and configuration. Build and launch it with:
+
+```sh
+./desktop/build.sh
+open desktop/1folder.app
+```
+
+The prototype uses the same config file and Rust core as the CLI and LaunchAgent.
+It can edit and validate the TOML config, save it atomically, restart the
+LaunchAgent, preview operations, run one shot, show activity, undo the latest
+operation, and set the target-folder icon.
+
 ## Quick start
 
 ```sh

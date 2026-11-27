@@ -212,6 +212,9 @@ immediately. See LONGTERM-GOALS.md for product direction.
 - [x] Build a minimal native macOS prototype against the core API. Use it to
       validate Rust/Swift interop and the first usable workflow before adding
       broader menu-bar or settings features.
+- [x] Add an experimental native desktop settings-style interface for status, preview,
+      recent activity, undo, target-folder icons, TOML editing, and saving
+      configuration to the LaunchAgent.
 - [ ] Decide the packaging and distribution shape for the native app, including
       LaunchAgent lifecycle, permissions, code signing, and notarization.
 - [ ] Preserve a fully usable CLI and configuration-file workflow; a GUI must

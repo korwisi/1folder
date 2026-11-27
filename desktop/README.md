@@ -1,7 +1,8 @@
 # 1folder native desktop prototype
 
-This prototype is a minimal native macOS AppKit application for validating the
-Rust core through a C ABI. It is not a packaged or signed application.
+**Experimental and work in progress.** This prototype is a native macOS AppKit
+application for validating the Rust core through a C ABI. It is not a packaged
+or signed application, and some workflows may change.
 
 Build requirements:
 
@@ -26,13 +27,19 @@ swift run
 ```
 
 The prototype loads the default configuration from
-`~/Library/Application Support/1folder/config.toml`. It can show status,
-preview a one-shot run, run once, show recent journal activity, and undo the
-last operation. The **Set target icon** action applies the monochrome
-1folder icon to the configured target folder.
-The configuration editor loads the same TOML file as the LaunchAgent. **Save &
-restart agent** validates and atomically replaces the file, then restarts
-`de.korwisi.onefolder` so the background process adopts the new settings.
+`~/Library/Application Support/1folder/config.toml`. It uses the native
+macOS controls to edit folders, behavior, notifications, and Finder tags,
+and also provides a TOML editor for advanced settings.
+
+Available actions:
+
+- **Refresh** reloads status and recent activity.
+- **Preview** shows one-shot operations without changing files.
+- **Run once** executes a one-shot run.
+- **Set target icon** applies the 1folder monochrome icon to the target folder.
+- **Undo last** restores the latest reversible operation.
+- **Save & restart agent** validates and atomically saves the TOML file, then
+  restarts `de.korwisi.onefolder` so the LaunchAgent adopts the new settings.
 
 The editor is populated when the prototype opens. If no text appears, verify that
 the config path in the top field exists and is readable. The prototype and LaunchAgent
