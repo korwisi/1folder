@@ -2,6 +2,7 @@ pub mod category;
 pub mod classify;
 pub mod config;
 pub mod core;
+pub mod ffi;
 pub mod hash;
 pub mod i18n;
 pub mod index;

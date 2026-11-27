@@ -209,7 +209,7 @@ immediately. See LONGTERM-GOALS.md for product direction.
       status, activity history, and undo).
 - [x] Add UI-neutral core operations for execution status, one-shot execution,
       activity history, reconciliation, category management, and undo.
-- [ ] Build a minimal native macOS prototype against the core API. Use it to
+- [x] Build a minimal native macOS prototype against the core API. Use it to
       validate Rust/Swift interop and the first usable workflow before adding
       broader menu-bar or settings features.
 - [ ] Decide the packaging and distribution shape for the native app, including
