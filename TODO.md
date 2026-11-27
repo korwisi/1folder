@@ -92,7 +92,7 @@ tables in `src/i18n.rs`.
 Each item references the corresponding reliability item above; implement the
 tests together with the fix rather than maintaining parallel descriptions.
 
-- [ ] Integration tests proving dry-run leaves the filesystem and persistent
+- [x] Integration tests proving dry-run leaves the filesystem and persistent
       state unchanged, including an end-to-end test of the actual CLI/run-once
       workflow rather than only unit tests of `process_file()` (see
       "Make dry-run strictly side-effect-free").
